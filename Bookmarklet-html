@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sprout – the community AI that starts empty</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ctext y='30' font-size='30'%3E🌱%3C/text%3E%3C/svg%3E">
+<style>
+:root{color-scheme:light dark;--bg:#f1f4f7;--panel:#fff;--ink:#17212b;--mut:#5d6b78;--leaf:#2f8a57;--soil:#8a6a50;--line:#d3dbe3;--me:#dfe8f1;--on:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1418;--panel:#161d23;--ink:#e4ebf1;--mut:#8b99a6;--leaf:#52b680;--soil:#a98a6e;--line:#26313a;--me:#1f2c38;--on:#06130b}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
+header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#plant{width:36px;height:44px;flex:none}
+h1{margin:0;font:700 24px/1.1 "Avenir Next","Trebuchet MS",system-ui,sans-serif;letter-spacing:-.02em}
+h1 small{display:block;font:400 12px system-ui;color:var(--mut);letter-spacing:0;margin-top:2px}
+.sp{flex:1}
+button,.btn{font:600 13px system-ui;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:8px 12px;cursor:pointer}
+button.pri{background:var(--leaf);border-color:var(--leaf);color:var(--on)}
+:focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
+#set{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#set[hidden]{display:none}
+#set input[type=password]{flex:1 1 220px;font:14px system-ui;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+#set label{font-size:13px;color:var(--mut)}
+#set p{flex-basis:100%;margin:0;font-size:12px;color:var(--mut)}
+#log{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px}
+.m{max-width:88%;white-space:pre-wrap;overflow-wrap:anywhere}
+.bot{align-self:flex-start;border-left:3px solid var(--leaf);padding-left:12px}
+.me{align-self:flex-end;background:var(--me);border-radius:6px;padding:8px 12px}
+.bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);align-items:flex-end;background:var(--panel)}
+textarea{flex:1;resize:none;font:16px/1.4 system-ui;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);max-height:120px}
+</style>
+</head>
+<body>
+<header>
+  <svg id="plant" viewBox="0 0 36 44" aria-hidden="true"></svg>
+  <h1>Sprout<small>Starts empty. Learns from you and everyone else.</small></h1>
+  <span class="sp"></span>
+  <button id="pill" title="Re-sync the community model">…</button>
+  <button id="tk" title="GitHub token">Token</button>
+  <button id="up" class="pri">Share</button>
+</header>
+<div id="set" hidden>
+  <input id="tok" type="password" placeholder="GitHub token with Contents: read and write" autocomplete="off">
+  <label><input type="checkbox" id="rem"> Remember on this device</label>
+  <button id="sv" class="pri">Save token</button><button id="cl">Remove</button>
+  <p>The token stays in this browser and is only sent to api.github.com. It needs write access to ToasterGG/Community-AI.</p>
+</div>
+<div id="log" aria-live="polite"></div>
+<div class="bar">
+  <label class="btn" for="fi" title="Teach me from a .txt file">Add .txt</label>
+  <input id="fi" type="file" accept=".txt,text/plain" multiple hidden>
+  <textarea id="in" rows="1" placeholder="Tell me something, or ask me a question"></textarea>
+  <button id="go" class="pri">Send</button>
+</div>
+<script>
+const REPO='ToasterGG/Community-AI',API=`https://api.github.com/repos/${REPO}/contents/model.json`;
+const $=s=>document.querySelector(s),log=$('#log'),inp=$('#in');
+const S=(o,k,v)=>{try{return v===undefined?o.getItem(k):v===null?o.removeItem(k):o.setItem(k,v)}catch{}};
+const token=()=>S(sessionStorage,'sprout.tk')||S(localStorage,'sprout.tk')||'';
+const STOP=new Set('a an the is are was were be been am of to in on at for and or but with by as it its this that these those i you he she we they me my your do does did what who when where why how which can could will would should about into from than then so if not no yes tell explain'.split(' '));
+const stem=w=>{const r=w.replace(/(ing|ed|es|s)$/,'');return r.length>2?r:w};
+const tok=s=>(s.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).filter(w=>w.length>1&&!STOP.has(w)).map(stem);
+const norm=f=>f&&typeof f.t==='string'&&f.t.trim()&&f.t.length<=500?{t:f.t.trim(),...(typeof f.q==='string'&&f.q.trim()&&f.q.length<=300?{q:f.q.trim()}:{})}:null;
+const key=f=>((f.q||'')+'|'+f.t).toLowerCase().replace(/\s+/g,' ').trim();
+const b64e=s=>{const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)};
+const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+let comm=[],mine=[],idx={N:0,docs:[],df:{}},pend=null;
+try{mine=JSON.parse(S(localStorage,'sprout.mine')||'[]').map(norm).filter(Boolean)}catch{}
+
+function say(t,w='bot'){const d=document.createElement('div');d.className='m '+w;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight}
+function plant(n){const L=Math.min(7,Math.floor(Math.log2(n+1)));let s='<rect x="10" y="36" width="16" height="8" rx="2" fill="var(--soil)"/>';
+  if(!L)s+='<circle cx="18" cy="34" r="2.5" fill="var(--leaf)"/>';
+  else{s+=`<path d="M18 36V${36-(8+L*4)}" stroke="var(--leaf)" stroke-width="2" fill="none"/>`;
+    for(let i=0;i<L;i++){const y=31-i*4,r=i%2?1:-1,x=18+r*5;s+=`<ellipse cx="${x}" cy="${y}" rx="5" ry="2.4" transform="rotate(${-r*25} ${x} ${y})" fill="var(--leaf)"/>`}}
+  $('#plant').innerHTML=s}
+function build(){const seen=new Set(),docs=[],df={};
+  [...comm,...mine].forEach(f=>{const k=key(f);if(seen.has(k))return;seen.add(k);const tk=tok((f.q||'')+' '+f.t),set=new Set(tk);set.forEach(w=>df[w]=(df[w]||0)+1);docs.push({f,set,n:tk.length})});
+  idx={docs,df,N:docs.length};plant(idx.N);
+  $('#pill').textContent=`${comm.length} shared · ${mine.length} yours`;
+  $('#up').textContent=mine.length?`Share ${mine.length}`:'Share'}
+function add(items){const have=new Set([...comm,...mine].map(key));let n=0;
+  items.forEach(f=>{f=norm(f);if(f&&!have.has(key(f))){have.add(key(f));mine.push(f);n++}});
+  S(localStorage,'sprout.mine',JSON.stringify(mine));build();return n}
+const chunks=t=>t.replace(/\r/g,'').split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim().replace(/\s+/g,' ')).filter(s=>s.length>=12).map(s=>({t:s.slice(0,500)}));
+function ask(q){const qt=[...new Set(tok(q))];if(!qt.length||!idx.N)return[];
+  const w=t=>Math.log(1+idx.N/(1+(idx.df[t]||0))),tot=qt.reduce((a,t)=>a+w(t),0);
+  const r=idx.docs.map(d=>{let m=0;qt.forEach(t=>{if(d.set.has(t))m+=w(t)});return{t:d.f.t,cov:m/tot,r:m/tot*m/Math.sqrt(d.n+3)}}).filter(x=>x.cov>=.5).sort((a,b)=>b.r-a.r);
+  return r.length?r.filter(x=>x.r>=r[0].r*.5).slice(0,3).map(x=>x.t):[]}
+
+async function load(){
+  $('#pill').textContent='syncing…';
+  try{const h={Accept:'application/vnd.github.raw+json'};if(token())h.Authorization='Bearer '+token();
+    const r=await fetch(API,{headers:h});
+    if(r.status==404)comm=[];
+    else if(r.ok){const m=await r.json();comm=(m.facts||[]).map(norm).filter(Boolean)}
+    else throw r.status;
+  }catch{say("I couldn't reach the community model, so I'm using only what I have locally. Tap the counter to retry.")}
+  build()}
+
+async function upload(){
+  const t=token();
+  if(!t){$('#set').hidden=false;return say('I need a GitHub token before I can share. Paste one in the panel above and save it.')}
+  if(!mine.length)return say('There is nothing new to share yet. Teach me something first.');
+  say('Sharing with the community…');
+  try{for(let i=0;i<3;i++){
+    const H={Accept:'application/vnd.github+json',Authorization:'Bearer '+t};
+    let sha,cur=[];const g=await fetch(API,{headers:H});
+    if(g.ok){const j=await g.json();sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();cur=(JSON.parse(txt).facts||[]).map(norm).filter(Boolean)}
+    else if(g.status!=404)throw g.status;
+    const seen=new Set(cur.map(key)),fresh=mine.filter(f=>!seen.has(key(f))),merged=[...cur,...fresh];
+    if(!fresh.length){comm=merged;mine=[];S(localStorage,'sprout.mine','[]');build();return say('The community already knew all of that.')}
+    const p=await fetch(API,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout: +${fresh.length} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout',facts:merged})),sha})});
+    if(p.ok){comm=merged;mine=[];S(localStorage,'sprout.mine','[]');build();return say(`Shared ${fresh.length} new thing${fresh.length>1?'s':''}. Everyone gets them the next time they open me.`)}
+    if(p.status!=409&&p.status!=422)throw p.status}
+    throw 409
+  }catch(e){say(e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
+
+const isQ=v=>/\?\s*$/.test(v)||/^(what|who|when|where|why|how|which|tell me|explain)\b/i.test(v);
+function cmd(v){const c=v.slice(1).split(' ')[0].toLowerCase();
+  if(c=='upload')return upload();
+  if(c=='forget'){mine=[];add([]);return say('Cleared everything you taught me that was not shared yet.')}
+  say('Statements teach me and questions ask me. Write "question => answer" to teach a pair, or add .txt files. /upload shares what you taught me, /forget clears unshared lessons.')}
+function handle(v){
+  if(v[0]=='/')return cmd(v);
+  if(pend){const q=pend;pend=null;if(!isQ(v)){const n=add([{q,t:v}]);return say(n?'Learned it. Ask me again.':'I already knew that one.')}}
+  const m=v.split(/\s*=>\s*/);
+  if(m.length==2&&m[0]&&m[1]){const n=add([{q:m[0],t:m[1]}]);return say(n?'Learned that answer.':'I already knew that one.')}
+  if(isQ(v)){const r=ask(v);
+    if(r.length)return say(r.join('\n\n'));
+    pend=v;return say(idx.N?"I don't know that yet. Type the answer and I'll remember it, or ask something else.":"My mind is a blank page, so I can't answer yet. Type the answer and I'll remember it, or add a .txt file.")}
+  const n=add(chunks(v).length?chunks(v):[{t:v}]);
+  say(n?`Learned ${n} new thing${n>1?'s':''}. I know ${idx.N} in total.`:'I already knew that.')}
+async function files(list){for(const f of list){
+  if(!(/\.txt$/i.test(f.name)||f.type=='text/plain')){say(`I can only read .txt files, so I skipped ${f.name}.`);continue}
+  say(f.name,'me');const n=add(chunks(await f.text()));
+  say(n?`Read ${f.name} and learned ${n} new thing${n>1?'s':''}. I know ${idx.N} in total.`:`I found nothing new in ${f.name}.`)}}
+function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');handle(v)}
+
+$('#go').onclick=send;
+inp.onkeydown=e=>{if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();send()}};
+inp.oninput=()=>{inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,120)+'px'};
+$('#fi').onchange=e=>{files([...e.target.files]);e.target.value=''};
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>{e.preventDefault();files([...e.dataTransfer.files])});
+$('#up').onclick=upload;$('#pill').onclick=async()=>{await load();say(`Synced. The community has taught me ${comm.length} things.`)};
+$('#tk').onclick=()=>{$('#set').hidden=!$('#set').hidden};
+$('#sv').onclick=()=>{const v=$('#tok').value.trim();if(!v)return;S(sessionStorage,'sprout.tk',v);S(localStorage,'sprout.tk',$('#rem').checked?v:null);$('#tok').value='';$('#set').hidden=true;say('Token saved. I can share what I learn now.')};
+$('#cl').onclick=()=>{S(sessionStorage,'sprout.tk',null);S(localStorage,'sprout.tk',null);say('Token removed from this browser.')};
+
+(async()=>{build();await load();
+  say(idx.N?`Hi, I'm Sprout. I've learned ${idx.N} things from you and the community. Ask me something, or teach me more.`:"Hi, I'm Sprout. I start with no knowledge at all. Teach me by typing facts or adding a .txt file, then ask me questions. Share what I learn and everyone's Sprout gets it.")})();
+</script>
+</body>
+</html>
