@@ -61,7 +61,7 @@ textarea,input[type=password],input[type=text]{font:16px/1.4 system-ui;padding:1
 .stats b{display:block;font:700 22px "Avenir Next","Trebuchet MS",system-ui,sans-serif;color:var(--ink)}
 #teach section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px}
 #txt{width:100%;resize:vertical;margin:8px 0}
-#tok,#tp,#df{flex:1 1 220px}
+#tok,#tp{flex:1 1 220px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
 .hint{font-size:13px;color:var(--mut);margin:6px 0}
 ul{list-style:none;padding:0;margin:0}
@@ -109,7 +109,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 
   <section>
     <h3>Test the predictor</h3>
-    <p class="hint">Watch Sprout write one word at a time, using the creativity slider from Chat. Sprout only picks from the top 3 to 5 words (more at higher creativity); faded options are outside that pool. Tap any option to force it. Tags: topic = relates to your prompt, repeat = used recently so less likely, lead = first word of the best matching fact.</p>
+    <p class="hint">Watch Sprout write one word at a time, using the creativity slider from Chat. Sprout only picks from the top 3 to 5 words (more at higher creativity); faded options are outside that pool. Tap any option to force it. Tags: topic = relates to your prompt, repeat = used recently so less likely, follows fact = continues the best matching fact.</p>
     <div class="row"><input id="tp" type="text" placeholder="Prompt, for example: What is a sprout?"><button id="tstart" class="pri">Start</button></div>
     <div id="tview" hidden>
       <div id="tout" class="tout" aria-live="polite"></div>
@@ -121,8 +121,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 
   <section>
     <h3>Share with everyone</h3>
-    <div class="row"><input id="df" type="text" placeholder="Data file in the repo" aria-label="Data file"><button id="dfs">Save file name</button></div>
-    <p class="hint">Sprout keeps what it learns in this JSON file, separate from your app's page. Pick a name your page does not use.</p>
+    <p class="hint">Sprout only reads and writes <b>model.json</b> on the <b>main</b> branch of ToasterGG/Community-AI, and nothing else.</p>
     <div class="row">
       <input id="tok" type="password" placeholder="GitHub token with Contents: read and write" autocomplete="off">
       <label class="hint"><input type="checkbox" id="rem"> Remember on this device</label>
@@ -141,7 +140,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 </main>
 
 <script>
-const REPO='ToasterGG/Community-AI',FILE=()=>S(localStorage,'sprout.file')||'knowledge.json',API=()=>`https://api.github.com/repos/${REPO}/contents/${encodeURI(FILE())}`;
+const REPO='ToasterGG/Community-AI',FILE='model.json',BRANCH='main',API=put=>`https://api.github.com/repos/${REPO}/contents/${FILE}`+(put?'':`?ref=${BRANCH}`);
 const $=s=>document.querySelector(s),log=$('#log'),inp=$('#in');
 const S=(o,k,v)=>{try{return v===undefined?o.getItem(k):v===null?o.removeItem(k):o.setItem(k,v)}catch{}};
 const token=()=>S(sessionStorage,'sprout.tk')||S(localStorage,'sprout.tk')||'';
@@ -154,7 +153,7 @@ const key=f=>((f.q||'')+'|'+f.t).toLowerCase().replace(/\s+/g,' ').trim();
 const b64e=s=>{const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)};
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 const nul=()=>Object.create(null);
-let comm=[],mine=[],idx={N:0,docs:[],df:nul()},M={T:nul(),B:nul(),cs:nul()};
+let comm=[],mine=[],idx={N:0,docs:[],df:nul()},M={T:nul(),B:nul(),Q:nul(),cs:nul()};
 try{mine=JSON.parse(S(localStorage,'sprout.mine')||'[]').map(norm).filter(Boolean)}catch{}
 const persist=()=>S(localStorage,'sprout.mine',JSON.stringify(mine));
 const tmsg=t=>$('#msg').textContent=t,sst=t=>$('#sst').textContent=t;
@@ -176,14 +175,14 @@ function plant(n){const L=Math.min(7,Math.floor(Math.log2(n+1)));let s='<rect x=
 /* Learning: every fact is indexed for retrieval AND counted into word-pattern tables
    (T = which word follows the last two words, B = which word follows the last word,
    cs = how each word is usually capitalised). */
-function build(){const seen=new Set(),docs=[],df=nul(),T=nul(),B=nul(),cs=nul();
+function build(){const seen=new Set(),docs=[],df=nul(),T=nul(),B=nul(),Q=nul(),cs=nul();
   const inc=(m,k,w)=>{const o=m[k]||(m[k]=nul());o[w]=(o[w]||0)+1};
   [...comm,...mine].forEach(f=>{const k=key(f);if(seen.has(k))return;seen.add(k);
-    const tk=tok((f.q||'')+' '+f.t),set=new Set(tk);set.forEach(w=>df[w]=(df[w]||0)+1);docs.push({f,set,n:tk.length});
-    const raw=f.t.match(WD)||[],a=['<s>','<s>',...raw.map(x=>x.toLowerCase()),'</s>'];
+    const tk=tok((f.q||'')+' '+f.t),set=new Set(tk);set.forEach(w=>df[w]=(df[w]||0)+1);docs.push({f,set,n:tk.length,qs:new Set(tok(f.q||'')),bg:new Set(tk.slice(1).map((x,i)=>tk[i]+' '+x))});
+    const raw=f.t.match(WD)||[],a=['<s>','<s>','<s>',...raw.map(x=>x.toLowerCase()),'</s>'];
     raw.forEach((x,i)=>{if(i&&/\p{L}/u.test(x))inc(cs,x.toLowerCase(),x)});
-    for(let i=2;i<a.length;i++){inc(T,a[i-2]+' '+a[i-1],a[i]);inc(B,a[i-1],a[i])}});
-  idx={N:docs.length,docs,df};M={T,B,cs};plant(idx.N);
+    for(let i=3;i<a.length;i++){inc(Q,a[i-3]+' '+a[i-2]+' '+a[i-1],a[i]);inc(T,a[i-2]+' '+a[i-1],a[i]);inc(B,a[i-1],a[i])}});
+  idx={N:docs.length,docs,df};M={T,B,Q,cs};plant(idx.N);
   $('#pill').textContent=`${comm.length} shared · ${mine.length} yours`;
   $('#up').textContent=mine.length?`Share ${mine.length} lesson${mine.length>1?'s':''}`:'Share';
   $('#s1').textContent=idx.N;$('#s2').textContent=Math.max(0,Object.keys(B).length-1);$('#s3').textContent=Object.keys(T).length;
@@ -198,41 +197,56 @@ const chunks=(t,min)=>t.split(/(?<=[.!?])\s+/).map(s=>s.trim().replace(/\s+/g,' 
 const parse=(t,min)=>t.replace(/\r/g,'').split('\n').flatMap(l=>{const m=l.split(/\s*=>\s*/);return m.length==2&&m[0].trim()&&m[1].trim()?[{q:m[0].trim(),t:m[1].trim()}]:chunks(l,min)});
 
 /* Recall: find the facts most relevant to the prompt. */
-function ask(q,loose){const qt=[...new Set(tok(q))];if(!qt.length||!idx.N)return[];
-  const w=t=>Math.log(1+idx.N/(1+(idx.df[t]||0))),tot=qt.reduce((a,t)=>a+w(t),0);
-  const r=idx.docs.map(d=>{let m=0;qt.forEach(t=>{if(d.set.has(t))m+=w(t)});return{t:d.f.t,cov:m/tot,r:m/tot*m/Math.sqrt(d.n+3)}}).filter(x=>x.cov>(loose?0:.49)).sort((a,b)=>b.r-a.r);
+function ask(q,loose){const tq=tok(q),qt=[...new Set(tq)];if(!qt.length||!idx.N)return[];
+  const w=t=>Math.log(1+idx.N/(1+(idx.df[t]||0))),tot=qt.reduce((a,t)=>a+w(t),0),qb=tq.slice(1).map((x,i)=>tq[i]+' '+x);
+  const r=idx.docs.map(d=>{let m=0,mq=0;qt.forEach(t=>{const x=w(t);if(d.set.has(t))m+=x;if(d.qs.has(t))mq+=x});
+    const cov=m/tot,bg=qb.length?qb.filter(b=>d.bg.has(b)).length/qb.length:0;
+    return{t:d.f.t,cov,r:(cov+.5*bg)*m/Math.sqrt(d.n+3)*(1+2*mq/tot)}}).filter(x=>x.cov>(loose?0:.49)).sort((a,b)=>b.r-a.r);
   return r.length?r.filter(x=>x.r>=r[0].r*.5).slice(0,3):[]}
 
-/* Reply: write one word at a time. Each next word is drawn from what followed the last two
-   words in everything Sprout has read (falling back to the last word alone), boosted when it
-   relates to the prompt, and sharpened or softened by the creativity slider (temperature).
-   gstate/gopts/gpush are the single steps, so the Teach menu can replay them live. */
+/* Reply: write one word at a time.
+   - Memory: the next word comes from what followed the last 3 words (then 2, then 1) in everything Sprout has read.
+   - Focus: words related to the prompt are boosted, and Sprout follows the best-matching fact as a template,
+     moving on to a second matching fact if the first is short.
+   - Choice: only the top 3-5 candidates are eligible (more at higher creativity), picked by chance.
+   gstate/gopts/gpush are single steps, so the Teach menu can replay them live. */
 const pick=(a,f)=>{let r=Math.random()*a.reduce((s,x)=>s+f(x),0);for(const x of a){r-=f(x);if(r<=0)return x}return a[a.length-1]};
-const sc=nul(),sk=w=>sc[w]??(sc[w]=tok(w)[0]||'');
+const sc=nul(),sk=w=>sc[w]??(sc[w]=tok(w)[0]||''),draw=o=>pick(o.filter(x=>x.pool),x=>x.x);
+let LASTQ='';
+function setsrc(st){const h=st.hits[st.hi];st.src=h?(h.t.match(WD)||[]).map(x=>x.toLowerCase()):null;st.pos=st.src?0:-1}
 function gstate(q,Tp){
   let hits=ask(q),guessed=false;if(!hits.length){guessed=true;hits=ask(q,true)}
   const topic=new Map(),up=(w,v)=>topic.set(w,(topic.get(w)||0)+v);
-  tok(q).forEach(w=>up(w,3));hits.forEach((h,i)=>tok(h.t).forEach(w=>up(w,i?1:2)));
-  return{hits,guessed,topic,Tp,lead:hits.length?(pick(hits,h=>Math.pow(h.r,1/Tp)).t.match(WD)||[''])[0].toLowerCase():'',out:[],c1:'<s>',c2:'<s>',sent:0,done:false}}
-const draw=o=>pick(o.filter(x=>x.pool),x=>x.x);
+  tok(q).forEach(w=>up(w,3));tok(LASTQ).forEach(w=>up(w,1));hits.forEach((h,i)=>tok(h.t).forEach(w=>up(w,i?1:2)));
+  if(hits.length>1){const f=pick(hits,h=>Math.pow(h.r,1/Tp));hits=[f,...hits.filter(h=>h!==f)]}
+  const st={hits,guessed,topic,Tp,hi:0,h:['<s>','<s>','<s>'],out:[],sent:0,done:false};setsrc(st);return st}
 function gopts(st){
-  const useB=Math.random()<Math.max(0,(st.Tp-.7)*.5),tri=!useB&&M.T[st.c1+' '+st.c2],cand=tri||M.B[st.c2];if(!cand)return[];
-  const recent=st.out.slice(-8),o=Object.keys(cand).filter(w=>w!='</s>'||st.out.length).map(w=>{
-    let x=Math.pow(cand[w],1/st.Tp);const tags=[],t=st.topic.get(sk(w));
+  const drop=Math.random()<Math.max(0,(st.Tp-.7)*.5),H=st.h,k4=H.join(' '),k3=H.slice(1).join(' '),
+    c=!drop&&M.Q[k4]?[M.Q[k4],'4-word']:M.T[k3]?[M.T[k3],'3-word']:M.B[H[2]]?[M.B[H[2]],'2-word']:null;
+  if(!c)return[];
+  const cand=c[0],recent=st.out.slice(-8),F=(st.guessed?3:14)/st.Tp,
+    nx=st.src&&st.pos>=0?(st.pos<st.src.length?st.src[st.pos]:'</s>'):null,keys=new Set(Object.keys(cand));
+  if(nx)keys.add(nx);
+  const o=[...keys].filter(w=>w!='</s>'||st.out.length).map(w=>{
+    let x=Math.pow(cand[w]||.5,1/st.Tp);const tags=[],t=st.topic.get(sk(w));
     if(t){x*=1+Math.min(t,6)*1.5;tags.push('topic')}
     if(sk(w)&&recent.includes(w)){x*=.15;tags.push('repeat')}
-    if(w=='</s>'&&st.out.length<6){x*=.05;tags.push('too early')}
-    if(!st.out.length&&w==st.lead){x*=8;tags.push('lead')}
-    return{w,x,n:cand[w],tags,mode:tri?'3-word':'2-word'}});
-  const tot=o.reduce((a,b)=>a+b.x,0);o.forEach(b=>b.p=b.x/tot);o.sort((a,b)=>b.x-a.x);const k=Math.round(3+2*Math.min(1,Math.max(0,(st.Tp-.3)/1.3)));o.forEach((b,i)=>b.pool=i<k);return o}
+    if(w=='</s>'&&st.out.length<6&&w!==nx){x*=.05;tags.push('too early')}
+    if(w===nx){x*=F;tags.push('follows fact')}
+    return{w,x,n:cand[w]||0,tags,mode:c[1]}});
+  const tot=o.reduce((a,b)=>a+b.x,0);o.forEach(b=>b.p=b.x/tot);o.sort((a,b)=>b.x-a.x);
+  const k=Math.round(3+2*Math.min(1,Math.max(0,(st.Tp-.3)/1.3)));o.forEach((b,i)=>b.pool=i<k);return o}
 function gpush(st,w){
-  if(w=='</s>'){if(!st.out.length)return;if(!/[.!?]$/.test(st.out[st.out.length-1]))st.out.push('.');if(++st.sent>=2||st.out.length>=18)st.done=true;st.c1=st.c2='<s>';return}
-  st.out.push(w);st.c1=st.c2;st.c2=w;if(st.out.length>=60)st.done=true}
+  if(w=='</s>'){if(!st.out.length)return;if(!/[.!?]$/.test(st.out[st.out.length-1]))st.out.push('.');st.h=['<s>','<s>','<s>'];st.sent++;
+    if(st.sent>=2||st.out.length>=25||st.guessed||!st.hits[st.hi+1])st.done=true;else{st.hi++;setsrc(st)}return}
+  if(st.src&&st.pos>=0){if(st.src[st.pos]===w)st.pos++;else{const j=st.src.indexOf(w);st.pos=j<0?-1:j+1}}
+  st.out.push(w);st.h=[...st.h.slice(1),w];if(st.out.length>=60)st.done=true}
 function fmt(out,final){const form=w=>{const c=M.cs[w];return c?Object.keys(c).reduce((a,b)=>c[b]>c[a]?b:a):w};
   let t=out.map(form).join(' ').replace(/ ([.,!?;:])/g,'$1').replace(/\bi\b/g,'I').replace(/(^|[.!?] )(\p{Ll})/gu,(m,a,b)=>a+b.toUpperCase());
   return final?t.replace(/([^.!?])$/,'$1.'):t}
 function gen(q,Tp){if(!idx.N)return null;const st=gstate(q,Tp);
   for(let n=0;n<200&&!st.done;n++){const o=gopts(st);if(!o.length)break;gpush(st,draw(o).w)}
+  LASTQ=q;
   return st.out.length?{text:fmt(st.out,true),guessed:st.guessed}:st.hits.length?{text:st.hits[0].t,guessed:st.guessed}:null}
 
 async function load(){
@@ -242,7 +256,7 @@ async function load(){
     if(r.status==404)comm=[];
     else if(r.ok){const m=await jget(r);comm=(m.facts||[]).map(norm).filter(Boolean)}
     else throw r.status;
-    sst('')}catch(e){sst(e=='html'?"I couldn't read the community model. Either a network filter is blocking GitHub or the data file in the repo isn't Sprout data. Sharing will tell you which.":"I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
+    sst('')}catch(e){sst(e=='html'?"I couldn't read the community model. Either a network filter is blocking GitHub or model.json on main isn't Sprout data. Sharing will tell you which.":"I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
   build()}
 
 async function upload(){
@@ -253,15 +267,15 @@ async function upload(){
   try{for(let i=0;i<3;i++){
     const H={Accept:'application/vnd.github+json',Authorization:'Bearer '+t};
     let sha,cur=[];const g=await fetch(API(),{headers:H});
-    if(g.ok){const j=await jget(g);sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();try{if(txt.trim()){const o=JSON.parse(txt);if(!Array.isArray(o.facts))throw 0;cur=o.facts.map(norm).filter(Boolean)}}catch{BADSNIP=txt.trim().slice(0,50);throw 'bad'}}
+    if(g.ok){const j=await jget(g);if(j.path!==FILE||j.type!=='file')throw 'wrong';sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();try{if(txt.trim()){const o=JSON.parse(txt);if(!Array.isArray(o.facts))throw 0;cur=o.facts.map(norm).filter(Boolean)}}catch{BADSNIP=txt.trim().slice(0,50);throw 'bad'}}
     else if(g.status!=404)throw g.status;
     const seen=new Set(cur.map(key)),fresh=mine.filter(f=>!seen.has(key(f))),merged=[...cur,...fresh];
     if(!fresh.length){comm=merged;mine=[];persist();build();return sst('The community already knew all of that.')}
-    const p=await fetch(API(),{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout: +${fresh.length} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout',facts:merged})),sha})});
+    const p=await fetch(API(1),{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout: +${fresh.length} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout',facts:merged})),sha,branch:BRANCH})});
     if(p.ok){comm=merged;mine=[];persist();build();return sst(`Shared ${fresh.length} new thing${fresh.length>1?'s':''}. Everyone gets them the next time they open me.`)}
     if(p.status!=409&&p.status!=422)throw p.status}
     throw 409
-  }catch(e){sst(e=='html'?HTMLMSG:e=='bad'?`${FILE()} in ${REPO} isn't Sprout data (it starts with "${BADSNIP}"), so I haven't touched it. It may be your app's page. Pick a different data file name above and share again.`:e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:e instanceof TypeError?"I couldn't reach GitHub. Check your connection or any network filter, then try again.":`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
+  }catch(e){sst(e=='html'?HTMLMSG:e=='wrong'?`GitHub returned something other than ${FILE} on ${BRANCH}, so I stopped without writing anything.`:e=='bad'?`${FILE} on ${BRANCH} isn't Sprout data (it starts with "${BADSNIP}"), so I haven't touched it. If that file is your app's page, move the page to another file name and leave ${FILE} for Sprout.`:e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:e instanceof TypeError?"I couldn't reach GitHub. Check your connection or any network filter, then try again.":`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
 
 function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');
   const t=say('','bot typing');t.innerHTML='<i></i><i></i><i></i>';
@@ -274,7 +288,7 @@ async function files(list){show('teach');let n=0,k=0;
 
 /* Test panel: replay generation one word at a time */
 let TS=null,tim=null;
-function tshow(){const st=TS,o=st.opts||[],ctx=[st.c1,st.c2].filter(x=>x!='<s>').join(' ');
+function tshow(){const st=TS,o=st.opts||[],ctx=st.h.filter(x=>x!='<s>').join(' ');
   $('#tout').textContent=st.out.length?fmt(st.out,st.done):'(nothing yet)';
   $('#tinfo').textContent=(st.msg?st.msg+'\n':'')+(st.done?'Finished. Press Start to try again.':o.length?`Next word after ${ctx?'"'+ctx+'"':'the start of a sentence'}: ${o[0].mode} pattern, ${o.length} candidate${o.length>1?'s':''}, ${o.filter(x=>x.pool).length} in the pool, top ${Math.min(10,o.length)} shown.`+(st.guessed?'\nNo strong match for this prompt, so Sprout is guessing.':''):'There is no pattern to continue from.');
   const box=$('#topts');box.innerHTML='';
@@ -295,8 +309,6 @@ $('#tp').onkeydown=e=>{if(e.key=='Enter')$('#tstart').click()};
 $('#tstep').onclick=()=>tstep();
 $('#tfin').onclick=()=>{for(let i=0;i<100&&TS&&!TS.done&&TS.opts.length;i++)tstep()};
 $('#tauto').onclick=()=>{if(tim){clearInterval(tim);tim=null;$('#tauto').textContent='Auto';return}$('#tauto').textContent='Pause';tim=setInterval(()=>tstep(),700)};
-$('#df').value=FILE();
-$('#dfs').onclick=async()=>{const v=$('#df').value.trim().replace(/^\/+/,'');if(!/^[\w.\-\/]+\.json$/.test(v))return sst('Use a file name ending in .json, with letters, numbers, dots, dashes or slashes.');S(localStorage,'sprout.file',v);sst(`Sprout will use ${v}. Syncing…`);await load();sst(`Using ${v}. The community has taught me ${comm.length} things.`)};
 $('#t-chat').onclick=()=>show('chat');$('#t-teach').onclick=()=>show('teach');
 $('#go').onclick=send;
 inp.onkeydown=e=>{if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();send()}};
