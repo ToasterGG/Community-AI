@@ -40,6 +40,7 @@ nav button[aria-selected=true]{background:var(--panel);color:var(--ink);box-shad
 #tinfo{white-space:pre-line}
 .opt{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;margin:4px 0;text-align:left;font-weight:400;padding:7px 12px;border-radius:8px}
 .opt b{font-weight:600}.opt small{color:var(--mut);font-size:12px}
+.opt.out{opacity:.5}
 .typing{display:flex;gap:5px;padding:15px 16px}
 .typing i{width:7px;height:7px;border-radius:50%;background:var(--mut);opacity:.4;animation:dot 1s infinite}
 .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
@@ -108,7 +109,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 
   <section>
     <h3>Test the predictor</h3>
-    <p class="hint">Watch Sprout write one word at a time, using the creativity slider from Chat. Tap any option to force that word. Tags: topic = relates to your prompt, repeat = used recently so less likely, lead = first word of the best matching fact.</p>
+    <p class="hint">Watch Sprout write one word at a time, using the creativity slider from Chat. Sprout only picks from the likeliest words that together make up 85% of the chance; faded options are outside that pool. Tap any option to force it. Tags: topic = relates to your prompt, repeat = used recently so less likely, lead = first word of the best matching fact.</p>
     <div class="row"><input id="tp" type="text" placeholder="Prompt, for example: What is a sprout?"><button id="tstart" class="pri">Start</button></div>
     <div id="tview" hidden>
       <div id="tout" class="tout" aria-live="polite"></div>
@@ -128,6 +129,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
       <button id="sv">Save token</button><button id="cl">Remove token</button><button id="up" class="pri">Share</button>
     </div>
     <p id="sst" class="hint" aria-live="polite"></p>
+    <div class="row"><button id="rbtn" hidden>Replace model.json with my lessons</button></div>
     <p class="hint">The token stays in this browser and is only sent to api.github.com. It needs write access to ToasterGG/Community-AI.</p>
   </section>
 
@@ -155,6 +157,7 @@ let comm=[],mine=[],idx={N:0,docs:[],df:nul()},M={T:nul(),B:nul(),cs:nul()};
 try{mine=JSON.parse(S(localStorage,'sprout.mine')||'[]').map(norm).filter(Boolean)}catch{}
 const persist=()=>S(localStorage,'sprout.mine',JSON.stringify(mine));
 const tmsg=t=>$('#msg').textContent=t,sst=t=>$('#sst').textContent=t;
+let BADSNIP='';
 const HTMLMSG="GitHub answered with a web page instead of data. A school or work network filter, or a proxy, is probably blocking api.github.com. Try another network or a phone hotspot.";
 async function jget(r){const t=await r.text();try{return JSON.parse(t)}catch{throw 'html'}}
 
@@ -210,6 +213,7 @@ function gstate(q,Tp){
   const topic=new Map(),up=(w,v)=>topic.set(w,(topic.get(w)||0)+v);
   tok(q).forEach(w=>up(w,3));hits.forEach((h,i)=>tok(h.t).forEach(w=>up(w,i?1:2)));
   return{hits,guessed,topic,Tp,lead:hits.length?(pick(hits,h=>Math.pow(h.r,1/Tp)).t.match(WD)||[''])[0].toLowerCase():'',out:[],c1:'<s>',c2:'<s>',sent:0,done:false}}
+const POOL=.85,draw=o=>pick(o.filter(x=>x.pool),x=>x.x);
 function gopts(st){
   const useB=Math.random()<Math.max(0,(st.Tp-.7)*.5),tri=!useB&&M.T[st.c1+' '+st.c2],cand=tri||M.B[st.c2];if(!cand)return[];
   const recent=st.out.slice(-8),o=Object.keys(cand).filter(w=>w!='</s>'||st.out.length).map(w=>{
@@ -219,7 +223,7 @@ function gopts(st){
     if(w=='</s>'&&st.out.length<6){x*=.05;tags.push('too early')}
     if(!st.out.length&&w==st.lead){x*=8;tags.push('lead')}
     return{w,x,n:cand[w],tags,mode:tri?'3-word':'2-word'}});
-  const tot=o.reduce((a,b)=>a+b.x,0);o.forEach(b=>b.p=b.x/tot);return o.sort((a,b)=>b.x-a.x)}
+  const tot=o.reduce((a,b)=>a+b.x,0);o.forEach(b=>b.p=b.x/tot);o.sort((a,b)=>b.x-a.x);let cum=0;o.forEach(b=>{b.pool=cum<POOL;cum+=b.p});return o}
 function gpush(st,w){
   if(w=='</s>'){if(!st.out.length)return;if(!/[.!?]$/.test(st.out[st.out.length-1]))st.out.push('.');if(++st.sent>=2||st.out.length>=18)st.done=true;st.c1=st.c2='<s>';return}
   st.out.push(w);st.c1=st.c2;st.c2=w;if(st.out.length>=60)st.done=true}
@@ -227,7 +231,7 @@ function fmt(out,final){const form=w=>{const c=M.cs[w];return c?Object.keys(c).r
   let t=out.map(form).join(' ').replace(/ ([.,!?;:])/g,'$1').replace(/\bi\b/g,'I').replace(/(^|[.!?] )(\p{Ll})/gu,(m,a,b)=>a+b.toUpperCase());
   return final?t.replace(/([^.!?])$/,'$1.'):t}
 function gen(q,Tp){if(!idx.N)return null;const st=gstate(q,Tp);
-  for(let n=0;n<200&&!st.done;n++){const o=gopts(st);if(!o.length)break;gpush(st,pick(o,x=>x.x).w)}
+  for(let n=0;n<200&&!st.done;n++){const o=gopts(st);if(!o.length)break;gpush(st,draw(o).w)}
   return st.out.length?{text:fmt(st.out,true),guessed:st.guessed}:st.hits.length?{text:st.hits[0].t,guessed:st.guessed}:null}
 
 async function load(){
@@ -237,18 +241,18 @@ async function load(){
     if(r.status==404)comm=[];
     else if(r.ok){const m=await jget(r);comm=(m.facts||[]).map(norm).filter(Boolean)}
     else throw r.status;
-    sst('')}catch(e){sst(e=='html'?HTMLMSG:"I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
+    sst('')}catch(e){sst(e=='html'?"I couldn't read the community model. Either a network filter is blocking GitHub or model.json in the repo isn't Sprout data. Sharing will tell you which.":"I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
   build()}
 
-async function upload(){
+async function upload(force){
   const t=token();
   if(!t){$('#tok').focus();return sst('Paste a GitHub token above and save it first.')}
   if(!mine.length)return sst('There is nothing new to share yet. Teach me something first.');
-  sst('Sharing with the community…');
+  sst('Sharing with the community…');$('#rbtn').hidden=true;
   try{for(let i=0;i<3;i++){
     const H={Accept:'application/vnd.github+json',Authorization:'Bearer '+t};
     let sha,cur=[];const g=await fetch(API,{headers:H});
-    if(g.ok){const j=await jget(g);sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();try{if(txt.trim())cur=(JSON.parse(txt).facts||[]).map(norm).filter(Boolean)}catch{throw 'bad'}}
+    if(g.ok){const j=await jget(g);sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();try{if(txt.trim())cur=(JSON.parse(txt).facts||[]).map(norm).filter(Boolean)}catch{if(!force){BADSNIP=txt.trim().slice(0,50);throw 'bad'}}}
     else if(g.status!=404)throw g.status;
     const seen=new Set(cur.map(key)),fresh=mine.filter(f=>!seen.has(key(f))),merged=[...cur,...fresh];
     if(!fresh.length){comm=merged;mine=[];persist();build();return sst('The community already knew all of that.')}
@@ -256,7 +260,7 @@ async function upload(){
     if(p.ok){comm=merged;mine=[];persist();build();return sst(`Shared ${fresh.length} new thing${fresh.length>1?'s':''}. Everyone gets them the next time they open me.`)}
     if(p.status!=409&&p.status!=422)throw p.status}
     throw 409
-  }catch(e){sst(e=='html'?HTMLMSG:e=='bad'?`model.json in ${REPO} isn't valid Sprout data, so I won't overwrite it. Open it on GitHub and fix or delete it, then share again.`:e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:e instanceof TypeError?"I couldn't reach GitHub. Check your connection or any network filter, then try again.":`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
+  }catch(e){if(e=='bad')$('#rbtn').hidden=false;sst(e=='html'?HTMLMSG:e=='bad'?`model.json in ${REPO} isn't Sprout data (it starts with "${BADSNIP}"), so I haven't touched it. Replace it with the button below, or fix it on GitHub.`:e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:e instanceof TypeError?"I couldn't reach GitHub. Check your connection or any network filter, then try again.":`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
 
 function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');
   const t=say('','bot typing');t.innerHTML='<i></i><i></i><i></i>';
@@ -271,16 +275,16 @@ async function files(list){show('teach');let n=0,k=0;
 let TS=null,tim=null;
 function tshow(){const st=TS,o=st.opts||[],ctx=[st.c1,st.c2].filter(x=>x!='<s>').join(' ');
   $('#tout').textContent=st.out.length?fmt(st.out,st.done):'(nothing yet)';
-  $('#tinfo').textContent=(st.msg?st.msg+'\n':'')+(st.done?'Finished. Press Start to try again.':o.length?`Next word after ${ctx?'"'+ctx+'"':'the start of a sentence'}: ${o[0].mode} pattern, ${o.length} candidate${o.length>1?'s':''}, top ${Math.min(10,o.length)} shown.`+(st.guessed?'\nNo strong match for this prompt, so Sprout is guessing.':''):'There is no pattern to continue from.');
+  $('#tinfo').textContent=(st.msg?st.msg+'\n':'')+(st.done?'Finished. Press Start to try again.':o.length?`Next word after ${ctx?'"'+ctx+'"':'the start of a sentence'}: ${o[0].mode} pattern, ${o.length} candidate${o.length>1?'s':''}, ${o.filter(x=>x.pool).length} in the pool, top ${Math.min(10,o.length)} shown.`+(st.guessed?'\nNo strong match for this prompt, so Sprout is guessing.':''):'There is no pattern to continue from.');
   const box=$('#topts');box.innerHTML='';
   if(!st.done)o.slice(0,10).forEach(c=>{const b=document.createElement('button'),l=document.createElement('span'),w=document.createElement('b'),d=document.createElement('small'),p=document.createElement('span'),pc=c.p*100;
-    b.className='opt';b.style.backgroundImage=`linear-gradient(90deg,var(--soft) ${pc}%,transparent ${pc}%)`;
+    b.className='opt'+(c.pool?'':' out');b.style.backgroundImage=`linear-gradient(90deg,var(--soft) ${pc}%,transparent ${pc}%)`;
     w.textContent=c.w=='</s>'?'(end of sentence)':c.w;d.textContent=`seen ${c.n}×`+(c.tags.length?' · '+c.tags.join(', '):'');
     l.append(w,document.createElement('br'),d);p.textContent=pc.toFixed(1)+'%';b.append(l,p);b.onclick=()=>tstep(c.w);box.append(b)});
   const off=st.done||!o.length;$('#tstep').disabled=$('#tfin').disabled=$('#tauto').disabled=off;
   if(off){clearInterval(tim);tim=null;$('#tauto').textContent='Auto'}}
 function tstep(w){const st=TS;if(!st||st.done||!st.opts.length)return;
-  const c=w?st.opts.find(x=>x.w==w):pick(st.opts,x=>x.x);
+  const c=w?st.opts.find(x=>x.w==w):draw(st.opts);
   st.msg=`Picked ${c.w=='</s>'?'(end of sentence)':'"'+c.w+'"'}, which had a ${(c.p*100).toFixed(1)}% chance${w?' (you chose it)':''}.`;
   gpush(st,c.w);st.opts=st.done?[]:gopts(st);tshow()}
 $('#tstart').onclick=()=>{clearInterval(tim);tim=null;$('#tauto').textContent='Auto';$('#tview').hidden=false;
@@ -299,7 +303,7 @@ $('#learn').onclick=()=>{const v=$('#txt').value;if(!v.trim())return tmsg('Write
 $('#fi').onchange=e=>{files([...e.target.files]);e.target.value=''};
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{e.preventDefault();files([...e.dataTransfer.files])});
-$('#up').onclick=upload;
+$('#up').onclick=()=>upload();$('#rbtn').onclick=()=>upload(true);
 $('#pill').onclick=async()=>{await load();sst(`Synced. The community has taught me ${comm.length} things.`)};
 $('#sv').onclick=()=>{const v=$('#tok').value.trim();if(!v)return;S(sessionStorage,'sprout.tk',v);S(localStorage,'sprout.tk',$('#rem').checked?v:null);$('#tok').value='';sst('Token saved. You can share now.')};
 $('#cl').onclick=()=>{S(sessionStorage,'sprout.tk',null);S(localStorage,'sprout.tk',null);sst('Token removed from this browser.')};
