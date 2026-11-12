@@ -61,7 +61,7 @@ textarea,input[type=password],input[type=text]{font:16px/1.4 system-ui;padding:1
 .stats b{display:block;font:700 22px "Avenir Next","Trebuchet MS",system-ui,sans-serif;color:var(--ink)}
 #teach section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px}
 #txt{width:100%;resize:vertical;margin:8px 0}
-#tok,#tp{flex:1 1 220px}
+#tok,#tp,#df{flex:1 1 220px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
 .hint{font-size:13px;color:var(--mut);margin:6px 0}
 ul{list-style:none;padding:0;margin:0}
@@ -109,7 +109,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 
   <section>
     <h3>Test the predictor</h3>
-    <p class="hint">Watch Sprout write one word at a time, using the creativity slider from Chat. Sprout only picks from the likeliest words that together make up 85% of the chance; faded options are outside that pool. Tap any option to force it. Tags: topic = relates to your prompt, repeat = used recently so less likely, lead = first word of the best matching fact.</p>
+    <p class="hint">Watch Sprout write one word at a time, using the creativity slider from Chat. Sprout only picks from the top 3 to 5 words (more at higher creativity); faded options are outside that pool. Tap any option to force it. Tags: topic = relates to your prompt, repeat = used recently so less likely, lead = first word of the best matching fact.</p>
     <div class="row"><input id="tp" type="text" placeholder="Prompt, for example: What is a sprout?"><button id="tstart" class="pri">Start</button></div>
     <div id="tview" hidden>
       <div id="tout" class="tout" aria-live="polite"></div>
@@ -121,6 +121,8 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 
   <section>
     <h3>Share with everyone</h3>
+    <div class="row"><input id="df" type="text" placeholder="Data file in the repo" aria-label="Data file"><button id="dfs">Save file name</button></div>
+    <p class="hint">Sprout keeps what it learns in this JSON file, separate from your app's page. Pick a name your page does not use.</p>
     <div class="row">
       <input id="tok" type="password" placeholder="GitHub token with Contents: read and write" autocomplete="off">
       <label class="hint"><input type="checkbox" id="rem"> Remember on this device</label>
@@ -129,7 +131,6 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
       <button id="sv">Save token</button><button id="cl">Remove token</button><button id="up" class="pri">Share</button>
     </div>
     <p id="sst" class="hint" aria-live="polite"></p>
-    <div class="row"><button id="rbtn" hidden>Replace model.json with my lessons</button></div>
     <p class="hint">The token stays in this browser and is only sent to api.github.com. It needs write access to ToasterGG/Community-AI.</p>
   </section>
 
@@ -140,7 +141,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 </main>
 
 <script>
-const REPO='ToasterGG/Community-AI',API=`https://api.github.com/repos/${REPO}/contents/model.json`;
+const REPO='ToasterGG/Community-AI',FILE=()=>S(localStorage,'sprout.file')||'knowledge.json',API=()=>`https://api.github.com/repos/${REPO}/contents/${encodeURI(FILE())}`;
 const $=s=>document.querySelector(s),log=$('#log'),inp=$('#in');
 const S=(o,k,v)=>{try{return v===undefined?o.getItem(k):v===null?o.removeItem(k):o.setItem(k,v)}catch{}};
 const token=()=>S(sessionStorage,'sprout.tk')||S(localStorage,'sprout.tk')||'';
@@ -213,7 +214,7 @@ function gstate(q,Tp){
   const topic=new Map(),up=(w,v)=>topic.set(w,(topic.get(w)||0)+v);
   tok(q).forEach(w=>up(w,3));hits.forEach((h,i)=>tok(h.t).forEach(w=>up(w,i?1:2)));
   return{hits,guessed,topic,Tp,lead:hits.length?(pick(hits,h=>Math.pow(h.r,1/Tp)).t.match(WD)||[''])[0].toLowerCase():'',out:[],c1:'<s>',c2:'<s>',sent:0,done:false}}
-const POOL=.85,draw=o=>pick(o.filter(x=>x.pool),x=>x.x);
+const draw=o=>pick(o.filter(x=>x.pool),x=>x.x);
 function gopts(st){
   const useB=Math.random()<Math.max(0,(st.Tp-.7)*.5),tri=!useB&&M.T[st.c1+' '+st.c2],cand=tri||M.B[st.c2];if(!cand)return[];
   const recent=st.out.slice(-8),o=Object.keys(cand).filter(w=>w!='</s>'||st.out.length).map(w=>{
@@ -223,7 +224,7 @@ function gopts(st){
     if(w=='</s>'&&st.out.length<6){x*=.05;tags.push('too early')}
     if(!st.out.length&&w==st.lead){x*=8;tags.push('lead')}
     return{w,x,n:cand[w],tags,mode:tri?'3-word':'2-word'}});
-  const tot=o.reduce((a,b)=>a+b.x,0);o.forEach(b=>b.p=b.x/tot);o.sort((a,b)=>b.x-a.x);let cum=0;o.forEach(b=>{b.pool=cum<POOL;cum+=b.p});return o}
+  const tot=o.reduce((a,b)=>a+b.x,0);o.forEach(b=>b.p=b.x/tot);o.sort((a,b)=>b.x-a.x);const k=Math.round(3+2*Math.min(1,Math.max(0,(st.Tp-.3)/1.3)));o.forEach((b,i)=>b.pool=i<k);return o}
 function gpush(st,w){
   if(w=='</s>'){if(!st.out.length)return;if(!/[.!?]$/.test(st.out[st.out.length-1]))st.out.push('.');if(++st.sent>=2||st.out.length>=18)st.done=true;st.c1=st.c2='<s>';return}
   st.out.push(w);st.c1=st.c2;st.c2=w;if(st.out.length>=60)st.done=true}
@@ -237,30 +238,30 @@ function gen(q,Tp){if(!idx.N)return null;const st=gstate(q,Tp);
 async function load(){
   $('#pill').textContent='syncing…';
   try{const h={Accept:'application/vnd.github.raw+json'};if(token())h.Authorization='Bearer '+token();
-    const r=await fetch(API,{headers:h});
+    const r=await fetch(API(),{headers:h});
     if(r.status==404)comm=[];
     else if(r.ok){const m=await jget(r);comm=(m.facts||[]).map(norm).filter(Boolean)}
     else throw r.status;
-    sst('')}catch(e){sst(e=='html'?"I couldn't read the community model. Either a network filter is blocking GitHub or model.json in the repo isn't Sprout data. Sharing will tell you which.":"I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
+    sst('')}catch(e){sst(e=='html'?"I couldn't read the community model. Either a network filter is blocking GitHub or the data file in the repo isn't Sprout data. Sharing will tell you which.":"I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
   build()}
 
-async function upload(force){
+async function upload(){
   const t=token();
   if(!t){$('#tok').focus();return sst('Paste a GitHub token above and save it first.')}
   if(!mine.length)return sst('There is nothing new to share yet. Teach me something first.');
-  sst('Sharing with the community…');$('#rbtn').hidden=true;
+  sst('Sharing with the community…');
   try{for(let i=0;i<3;i++){
     const H={Accept:'application/vnd.github+json',Authorization:'Bearer '+t};
-    let sha,cur=[];const g=await fetch(API,{headers:H});
-    if(g.ok){const j=await jget(g);sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();try{if(txt.trim())cur=(JSON.parse(txt).facts||[]).map(norm).filter(Boolean)}catch{if(!force){BADSNIP=txt.trim().slice(0,50);throw 'bad'}}}
+    let sha,cur=[];const g=await fetch(API(),{headers:H});
+    if(g.ok){const j=await jget(g);sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();try{if(txt.trim()){const o=JSON.parse(txt);if(!Array.isArray(o.facts))throw 0;cur=o.facts.map(norm).filter(Boolean)}}catch{BADSNIP=txt.trim().slice(0,50);throw 'bad'}}
     else if(g.status!=404)throw g.status;
     const seen=new Set(cur.map(key)),fresh=mine.filter(f=>!seen.has(key(f))),merged=[...cur,...fresh];
     if(!fresh.length){comm=merged;mine=[];persist();build();return sst('The community already knew all of that.')}
-    const p=await fetch(API,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout: +${fresh.length} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout',facts:merged})),sha})});
+    const p=await fetch(API(),{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout: +${fresh.length} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout',facts:merged})),sha})});
     if(p.ok){comm=merged;mine=[];persist();build();return sst(`Shared ${fresh.length} new thing${fresh.length>1?'s':''}. Everyone gets them the next time they open me.`)}
     if(p.status!=409&&p.status!=422)throw p.status}
     throw 409
-  }catch(e){if(e=='bad')$('#rbtn').hidden=false;sst(e=='html'?HTMLMSG:e=='bad'?`model.json in ${REPO} isn't Sprout data (it starts with "${BADSNIP}"), so I haven't touched it. Replace it with the button below, or fix it on GitHub.`:e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:e instanceof TypeError?"I couldn't reach GitHub. Check your connection or any network filter, then try again.":`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
+  }catch(e){sst(e=='html'?HTMLMSG:e=='bad'?`${FILE()} in ${REPO} isn't Sprout data (it starts with "${BADSNIP}"), so I haven't touched it. It may be your app's page. Pick a different data file name above and share again.`:e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:e instanceof TypeError?"I couldn't reach GitHub. Check your connection or any network filter, then try again.":`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
 
 function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');
   const t=say('','bot typing');t.innerHTML='<i></i><i></i><i></i>';
@@ -294,6 +295,8 @@ $('#tp').onkeydown=e=>{if(e.key=='Enter')$('#tstart').click()};
 $('#tstep').onclick=()=>tstep();
 $('#tfin').onclick=()=>{for(let i=0;i<100&&TS&&!TS.done&&TS.opts.length;i++)tstep()};
 $('#tauto').onclick=()=>{if(tim){clearInterval(tim);tim=null;$('#tauto').textContent='Auto';return}$('#tauto').textContent='Pause';tim=setInterval(()=>tstep(),700)};
+$('#df').value=FILE();
+$('#dfs').onclick=async()=>{const v=$('#df').value.trim().replace(/^\/+/,'');if(!/^[\w.\-\/]+\.json$/.test(v))return sst('Use a file name ending in .json, with letters, numbers, dots, dashes or slashes.');S(localStorage,'sprout.file',v);sst(`Sprout will use ${v}. Syncing…`);await load();sst(`Using ${v}. The community has taught me ${comm.length} things.`)};
 $('#t-chat').onclick=()=>show('chat');$('#t-teach').onclick=()=>show('teach');
 $('#go').onclick=send;
 inp.onkeydown=e=>{if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();send()}};
@@ -303,7 +306,7 @@ $('#learn').onclick=()=>{const v=$('#txt').value;if(!v.trim())return tmsg('Write
 $('#fi').onchange=e=>{files([...e.target.files]);e.target.value=''};
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{e.preventDefault();files([...e.dataTransfer.files])});
-$('#up').onclick=()=>upload();$('#rbtn').onclick=()=>upload(true);
+$('#up').onclick=()=>upload();
 $('#pill').onclick=async()=>{await load();sst(`Synced. The community has taught me ${comm.length} things.`)};
 $('#sv').onclick=()=>{const v=$('#tok').value.trim();if(!v)return;S(sessionStorage,'sprout.tk',v);S(localStorage,'sprout.tk',$('#rem').checked?v:null);$('#tok').value='';sst('Token saved. You can share now.')};
 $('#cl').onclick=()=>{S(sessionStorage,'sprout.tk',null);S(localStorage,'sprout.tk',null);sst('Token removed from this browser.')};
