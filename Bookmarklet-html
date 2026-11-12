@@ -2,34 +2,65 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Sprout – the community AI that starts empty</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ctext y='30' font-size='30'%3E🌱%3C/text%3E%3C/svg%3E">
 <style>
-:root{color-scheme:light dark;--bg:#f1f4f7;--panel:#fff;--ink:#17212b;--mut:#5d6b78;--leaf:#2f8a57;--soil:#8a6a50;--line:#d3dbe3;--me:#dfe8f1;--on:#fff}
-@media(prefers-color-scheme:dark){:root{--bg:#0f1418;--panel:#161d23;--ink:#e4ebf1;--mut:#8b99a6;--leaf:#52b680;--soil:#a98a6e;--line:#26313a;--me:#1f2c38;--on:#06130b}}
+:root{color-scheme:light dark;--bg:#eef3f0;--panel:#fff;--soft:#e0eae4;--ink:#14211b;--mut:#5a6b61;--leaf:#1f8a55;--soil:#8a6a50;--line:#d3ddd7;--on:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1612;--panel:#16211b;--soft:#1c2b23;--ink:#e3efe8;--mut:#8ea397;--leaf:#4cc084;--soil:#a98a6e;--line:#27382e;--on:#04120a}}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
-header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-#plant{width:36px;height:44px;flex:none}
-h1{margin:0;font:700 24px/1.1 "Avenir Next","Trebuchet MS",system-ui,sans-serif;letter-spacing:-.02em}
-h1 small{display:block;font:400 12px system-ui;color:var(--mut);letter-spacing:0;margin-top:2px}
+[hidden]{display:none!important}
+html{height:100%}
+body{margin:0 auto;height:100%;height:100dvh;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:720px}
+header{display:flex;align-items:center;gap:12px;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
+#plant{width:36px;height:44px;padding:8px;box-sizing:content-box;background:var(--soft);border-radius:16px;flex:none}
+h1,h2,h3{font-family:"Avenir Next","Trebuchet MS",system-ui,sans-serif;letter-spacing:-.015em}
+h1{margin:0;font-size:27px;line-height:1}
+h1 small{display:block;font:400 12.5px/1.3 system-ui;color:var(--mut);letter-spacing:0;margin-top:5px}
+h2{margin:0 0 4px;font-size:20px}
+h3{margin:0 0 10px;font-size:17px}
 .sp{flex:1}
-button,.btn{font:600 13px system-ui;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:8px 12px;cursor:pointer}
+button,.btn{font:600 14px system-ui;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:9px 14px;cursor:pointer;transition:filter .15s}
+button:hover,.btn:hover{filter:brightness(.96)}
 button.pri{background:var(--leaf);border-color:var(--leaf);color:var(--on)}
 :focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
-#set{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-#set[hidden]{display:none}
-#set input[type=password]{flex:1 1 220px;font:14px system-ui;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
-#set label{font-size:13px;color:var(--mut)}
-#set p{flex-basis:100%;margin:0;font-size:12px;color:var(--mut)}
-#log{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px}
-.m{max-width:88%;white-space:pre-wrap;overflow-wrap:anywhere}
-.bot{align-self:flex-start;border-left:3px solid var(--leaf);padding-left:12px}
-.me{align-self:flex-end;background:var(--me);border-radius:6px;padding:8px 12px}
-.bar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);align-items:flex-end;background:var(--panel)}
-textarea{flex:1;resize:none;font:16px/1.4 system-ui;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);max-height:120px}
+#pill{border-radius:999px;background:var(--soft);border-color:transparent;color:var(--mut);font-weight:500;font-size:12.5px;padding:7px 12px}
+nav{display:flex;gap:4px;margin:0 14px 8px;padding:4px;background:var(--soft);border-radius:12px}
+nav button{flex:1;border:0;border-radius:9px;background:none;padding:9px;color:var(--mut)}
+nav button[aria-selected=true]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+#chat{flex:1;min-height:0;display:flex;flex-direction:column}
+#log{flex:1;overflow-y:auto;padding:8px 14px 12px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:86%;padding:10px 14px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;animation:in .2s ease-out}
+.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.me{align-self:flex-end;background:var(--leaf);color:var(--on);border-bottom-right-radius:4px}
+.m button{margin-top:8px}
+.typing{display:flex;gap:5px;padding:15px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--mut);opacity:.4;animation:dot 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{50%{opacity:1;transform:translateY(-3px)}}
+@keyframes in{from{opacity:0;transform:translateY(5px)}}
+@media(prefers-reduced-motion:reduce){.m,.typing i{animation:none}}
+.dock{padding:4px 12px calc(22px + env(safe-area-inset-bottom))}
+.tune{display:flex;align-items:center;gap:8px;padding:0 8px 8px;font-size:12px;color:var(--mut)}
+.tune input{flex:1;accent-color:var(--leaf)}
+.bar{display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:6px 6px 6px 18px;box-shadow:0 4px 16px rgba(20,40,30,.09)}
+.bar:focus-within{border-color:var(--leaf)}
+textarea,input[type=password]{font:16px/1.4 system-ui;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+#in{flex:1;border:0;border-radius:0;background:none;outline:none;resize:none;padding:9px 0;max-height:120px}
+#go{width:42px;height:42px;padding:0;border-radius:50%;display:grid;place-items:center;flex:none}
+#teach{flex:1;overflow-y:auto;padding:4px 14px calc(28px + env(safe-area-inset-bottom))}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stats div{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--mut)}
+.stats b{display:block;font:700 22px "Avenir Next","Trebuchet MS",system-ui,sans-serif;color:var(--ink)}
+#teach section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px}
+#txt{width:100%;resize:vertical;margin:8px 0}
+#tok{flex:1 1 220px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.hint{font-size:13px;color:var(--mut);margin:6px 0}
+ul{list-style:none;padding:0;margin:0}
+li{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}
+li:last-child{border-bottom:0}
+li button{flex:none;padding:4px 10px;font-size:12.5px}
 </style>
 </head>
 <body>
@@ -38,22 +69,56 @@ textarea{flex:1;resize:none;font:16px/1.4 system-ui;padding:9px 11px;border:1px 
   <h1>Sprout<small>Starts empty. Learns from you and everyone else.</small></h1>
   <span class="sp"></span>
   <button id="pill" title="Re-sync the community model">…</button>
-  <button id="tk" title="GitHub token">Token</button>
-  <button id="up" class="pri">Share</button>
 </header>
-<div id="set" hidden>
-  <input id="tok" type="password" placeholder="GitHub token with Contents: read and write" autocomplete="off">
-  <label><input type="checkbox" id="rem"> Remember on this device</label>
-  <button id="sv" class="pri">Save token</button><button id="cl">Remove</button>
-  <p>The token stays in this browser and is only sent to api.github.com. It needs write access to ToasterGG/Community-AI.</p>
-</div>
-<div id="log" aria-live="polite"></div>
-<div class="bar">
-  <label class="btn" for="fi" title="Teach me from a .txt file">Add .txt</label>
-  <input id="fi" type="file" accept=".txt,text/plain" multiple hidden>
-  <textarea id="in" rows="1" placeholder="Tell me something, or ask me a question"></textarea>
-  <button id="go" class="pri">Send</button>
-</div>
+<nav role="tablist">
+  <button role="tab" id="t-chat" aria-selected="true">Chat</button>
+  <button role="tab" id="t-teach" aria-selected="false">Teach</button>
+</nav>
+
+<main id="chat">
+  <div id="log" aria-live="polite"></div>
+  <div class="dock">
+    <div class="tune"><span>Focused</span><input id="temp" type="range" min="0.3" max="1.6" step="0.1" value="0.8" aria-label="Creativity"><span>Creative</span></div>
+    <div class="bar">
+      <textarea id="in" rows="1" placeholder="Ask me something"></textarea>
+      <button id="go" class="pri" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </div>
+  </div>
+</main>
+
+<main id="teach" hidden>
+  <div class="stats"><div><b id="s1">0</b>facts</div><div><b id="s2">0</b>words</div><div><b id="s3">0</b>patterns</div></div>
+  <section>
+  <h2>Teach Sprout</h2>
+  <p class="hint">Paste text or write one fact per line. Write "question => answer" to give a direct answer.</p>
+  <textarea id="txt" rows="6" placeholder="The capital of France is Paris.&#10;What is a sprout? => A young plant that has just started to grow."></textarea>
+  <div class="row">
+    <button id="learn" class="pri">Teach</button>
+    <label class="btn" for="fi">Add .txt files</label>
+    <input id="fi" type="file" accept=".txt,text/plain" multiple hidden>
+    <span id="msg" class="hint" aria-live="polite"></span>
+  </div>
+  </section>
+
+  <section>
+    <h3>Share with everyone</h3>
+    <div class="row">
+      <input id="tok" type="password" placeholder="GitHub token with Contents: read and write" autocomplete="off">
+      <label class="hint"><input type="checkbox" id="rem"> Remember on this device</label>
+    </div>
+    <div class="row">
+      <button id="sv">Save token</button><button id="cl">Remove token</button><button id="up" class="pri">Share</button>
+    </div>
+    <p id="sst" class="hint" aria-live="polite"></p>
+    <p class="hint">The token stays in this browser and is only sent to api.github.com. It needs write access to ToasterGG/Community-AI.</p>
+  </section>
+
+  <section>
+    <h3>Your unshared lessons</h3>
+    <ul id="mine"></ul>
+  </section>
+</main>
+
 <script>
 const REPO='ToasterGG/Community-AI',API=`https://api.github.com/repos/${REPO}/contents/model.json`;
 const $=s=>document.querySelector(s),log=$('#log'),inp=$('#in');
@@ -62,32 +127,77 @@ const token=()=>S(sessionStorage,'sprout.tk')||S(localStorage,'sprout.tk')||'';
 const STOP=new Set('a an the is are was were be been am of to in on at for and or but with by as it its this that these those i you he she we they me my your do does did what who when where why how which can could will would should about into from than then so if not no yes tell explain'.split(' '));
 const stem=w=>{const r=w.replace(/(ing|ed|es|s)$/,'');return r.length>2?r:w};
 const tok=s=>(s.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).filter(w=>w.length>1&&!STOP.has(w)).map(stem);
+const WD=/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*|[.,!?;:]/gu;
 const norm=f=>f&&typeof f.t==='string'&&f.t.trim()&&f.t.length<=500?{t:f.t.trim(),...(typeof f.q==='string'&&f.q.trim()&&f.q.length<=300?{q:f.q.trim()}:{})}:null;
 const key=f=>((f.q||'')+'|'+f.t).toLowerCase().replace(/\s+/g,' ').trim();
 const b64e=s=>{const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)};
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
-let comm=[],mine=[],idx={N:0,docs:[],df:{}},pend=null;
+const nul=()=>Object.create(null);
+let comm=[],mine=[],idx={N:0,docs:[],df:nul()},M={T:nul(),B:nul(),cs:nul()};
 try{mine=JSON.parse(S(localStorage,'sprout.mine')||'[]').map(norm).filter(Boolean)}catch{}
+const persist=()=>S(localStorage,'sprout.mine',JSON.stringify(mine));
+const tmsg=t=>$('#msg').textContent=t,sst=t=>$('#sst').textContent=t;
 
-function say(t,w='bot'){const d=document.createElement('div');d.className='m '+w;d.textContent=t;log.append(d);log.scrollTop=log.scrollHeight}
+function say(t,w='bot',act){const d=document.createElement('div');d.className='m '+w;d.textContent=t;
+  if(act){const b=document.createElement('button');b.textContent=act[0];b.onclick=act[1];d.append(document.createElement('br'),b)}
+  log.append(d);log.scrollTop=log.scrollHeight;return d}
+function show(t){['chat','teach'].forEach(x=>{$('#'+x).hidden=x!=t;$('#t-'+x).setAttribute('aria-selected',x==t)});if(t=='chat')inp.focus()}
 function plant(n){const L=Math.min(7,Math.floor(Math.log2(n+1)));let s='<rect x="10" y="36" width="16" height="8" rx="2" fill="var(--soil)"/>';
   if(!L)s+='<circle cx="18" cy="34" r="2.5" fill="var(--leaf)"/>';
   else{s+=`<path d="M18 36V${36-(8+L*4)}" stroke="var(--leaf)" stroke-width="2" fill="none"/>`;
     for(let i=0;i<L;i++){const y=31-i*4,r=i%2?1:-1,x=18+r*5;s+=`<ellipse cx="${x}" cy="${y}" rx="5" ry="2.4" transform="rotate(${-r*25} ${x} ${y})" fill="var(--leaf)"/>`}}
   $('#plant').innerHTML=s}
-function build(){const seen=new Set(),docs=[],df={};
-  [...comm,...mine].forEach(f=>{const k=key(f);if(seen.has(k))return;seen.add(k);const tk=tok((f.q||'')+' '+f.t),set=new Set(tk);set.forEach(w=>df[w]=(df[w]||0)+1);docs.push({f,set,n:tk.length})});
-  idx={docs,df,N:docs.length};plant(idx.N);
+
+/* Learning: every fact is indexed for retrieval AND counted into word-pattern tables
+   (T = which word follows the last two words, B = which word follows the last word,
+   cs = how each word is usually capitalised). */
+function build(){const seen=new Set(),docs=[],df=nul(),T=nul(),B=nul(),cs=nul();
+  const inc=(m,k,w)=>{const o=m[k]||(m[k]=nul());o[w]=(o[w]||0)+1};
+  [...comm,...mine].forEach(f=>{const k=key(f);if(seen.has(k))return;seen.add(k);
+    const tk=tok((f.q||'')+' '+f.t),set=new Set(tk);set.forEach(w=>df[w]=(df[w]||0)+1);docs.push({f,set,n:tk.length});
+    const raw=f.t.match(WD)||[],a=['<s>','<s>',...raw.map(x=>x.toLowerCase()),'</s>'];
+    raw.forEach((x,i)=>{if(i&&/\p{L}/u.test(x))inc(cs,x.toLowerCase(),x)});
+    for(let i=2;i<a.length;i++){inc(T,a[i-2]+' '+a[i-1],a[i]);inc(B,a[i-1],a[i])}});
+  idx={N:docs.length,docs,df};M={T,B,cs};plant(idx.N);
   $('#pill').textContent=`${comm.length} shared · ${mine.length} yours`;
-  $('#up').textContent=mine.length?`Share ${mine.length}`:'Share'}
+  $('#up').textContent=mine.length?`Share ${mine.length} lesson${mine.length>1?'s':''}`:'Share';
+  $('#s1').textContent=idx.N;$('#s2').textContent=Math.max(0,Object.keys(B).length-1);$('#s3').textContent=Object.keys(T).length;
+  const ul=$('#mine');ul.innerHTML='';
+  mine.slice(-40).reverse().forEach(f=>{const li=document.createElement('li'),s=document.createElement('span'),b=document.createElement('button');
+    s.textContent=(f.q?f.q+' => ':'')+f.t;b.textContent='Remove';b.onclick=()=>{mine=mine.filter(x=>x!==f);persist();build()};li.append(s,b);ul.append(li)});
+  if(!mine.length){const li=document.createElement('li');li.textContent='Nothing yet. What you teach appears here until you share it.';ul.append(li)}}
 function add(items){const have=new Set([...comm,...mine].map(key));let n=0;
   items.forEach(f=>{f=norm(f);if(f&&!have.has(key(f))){have.add(key(f));mine.push(f);n++}});
-  S(localStorage,'sprout.mine',JSON.stringify(mine));build();return n}
-const chunks=t=>t.replace(/\r/g,'').split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim().replace(/\s+/g,' ')).filter(s=>s.length>=12).map(s=>({t:s.slice(0,500)}));
+  persist();build();return n}
+const chunks=(t,min)=>t.split(/(?<=[.!?])\s+/).map(s=>s.trim().replace(/\s+/g,' ')).filter(s=>s.length>=min).map(s=>({t:s.slice(0,500)}));
+const parse=(t,min)=>t.replace(/\r/g,'').split('\n').flatMap(l=>{const m=l.split(/\s*=>\s*/);return m.length==2&&m[0].trim()&&m[1].trim()?[{q:m[0].trim(),t:m[1].trim()}]:chunks(l,min)});
+
+/* Recall: find the facts most relevant to the prompt. */
 function ask(q){const qt=[...new Set(tok(q))];if(!qt.length||!idx.N)return[];
   const w=t=>Math.log(1+idx.N/(1+(idx.df[t]||0))),tot=qt.reduce((a,t)=>a+w(t),0);
   const r=idx.docs.map(d=>{let m=0;qt.forEach(t=>{if(d.set.has(t))m+=w(t)});return{t:d.f.t,cov:m/tot,r:m/tot*m/Math.sqrt(d.n+3)}}).filter(x=>x.cov>=.5).sort((a,b)=>b.r-a.r);
-  return r.length?r.filter(x=>x.r>=r[0].r*.5).slice(0,3).map(x=>x.t):[]}
+  return r.length?r.filter(x=>x.r>=r[0].r*.5).slice(0,3):[]}
+
+/* Reply: write one word at a time. Each next word is drawn from what followed the last two
+   words in everything Sprout has read, boosted when it relates to the prompt, and softened
+   or sharpened by the creativity slider (temperature). */
+const pick=(a,f)=>{let r=Math.random()*a.reduce((s,x)=>s+f(x),0);for(const x of a){r-=f(x);if(r<=0)return x}return a[a.length-1]};
+function gen(q,Tp){
+  const hits=ask(q);if(!hits.length)return null;
+  const topic=new Map(),up=(w,v)=>topic.set(w,(topic.get(w)||0)+v);
+  tok(q).forEach(w=>up(w,3));hits.forEach((h,i)=>tok(h.t).forEach(w=>up(w,i?1:2)));
+  const lead=(pick(hits,h=>Math.pow(h.r,1/Tp)).t.match(WD)||[''])[0].toLowerCase(),sc=nul(),sk=w=>sc[w]??(sc[w]=tok(w)[0]||'');
+  const out=[];let c1='<s>',c2='<s>',sent=0;
+  for(let n=0;n<60;n++){
+    const useB=Math.random()<Math.max(0,(Tp-.7)*.5),cand=(!useB&&M.T[c1+' '+c2])||M.B[c2];if(!cand)break;
+    const recent=out.slice(-8),opts=Object.keys(cand).map(w=>{let x=Math.pow(cand[w],1/Tp);const t=topic.get(sk(w));
+      if(t)x*=1+Math.min(t,6)*1.5;if(sk(w)&&recent.includes(w))x*=.15;if(w=='</s>'&&out.length<6)x*=.05;if(!out.length&&w==lead)x*=8;return[w,x]});
+    const w=pick(opts,o=>o[1])[0];
+    if(w=='</s>'){if(!out.length)continue;if(!/[.!?]$/.test(out[out.length-1]))out.push('.');if(++sent>=2||out.length>=18)break;c1=c2='<s>';continue}
+    out.push(w);c1=c2;c2=w}
+  if(!out.length)return hits[0].t;
+  const form=w=>{const c=M.cs[w];return c?Object.keys(c).reduce((a,b)=>c[b]>c[a]?b:a):w};
+  return out.map(form).join(' ').replace(/ ([.,!?;:])/g,'$1').replace(/\bi\b/g,'I').replace(/(^|[.!?] )(\p{Ll})/gu,(m,a,b)=>a+b.toUpperCase()).replace(/([^.!?])$/,'$1.')}
 
 async function load(){
   $('#pill').textContent='syncing…';
@@ -96,61 +206,52 @@ async function load(){
     if(r.status==404)comm=[];
     else if(r.ok){const m=await r.json();comm=(m.facts||[]).map(norm).filter(Boolean)}
     else throw r.status;
-  }catch{say("I couldn't reach the community model, so I'm using only what I have locally. Tap the counter to retry.")}
+    sst('')}catch{sst("I couldn't reach the community model, so I'm using only what I have locally. Tap the counter at the top to retry.")}
   build()}
 
 async function upload(){
   const t=token();
-  if(!t){$('#set').hidden=false;return say('I need a GitHub token before I can share. Paste one in the panel above and save it.')}
-  if(!mine.length)return say('There is nothing new to share yet. Teach me something first.');
-  say('Sharing with the community…');
+  if(!t){$('#tok').focus();return sst('Paste a GitHub token above and save it first.')}
+  if(!mine.length)return sst('There is nothing new to share yet. Teach me something first.');
+  sst('Sharing with the community…');
   try{for(let i=0;i<3;i++){
     const H={Accept:'application/vnd.github+json',Authorization:'Bearer '+t};
     let sha,cur=[];const g=await fetch(API,{headers:H});
     if(g.ok){const j=await g.json();sha=j.sha;const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();cur=(JSON.parse(txt).facts||[]).map(norm).filter(Boolean)}
     else if(g.status!=404)throw g.status;
     const seen=new Set(cur.map(key)),fresh=mine.filter(f=>!seen.has(key(f))),merged=[...cur,...fresh];
-    if(!fresh.length){comm=merged;mine=[];S(localStorage,'sprout.mine','[]');build();return say('The community already knew all of that.')}
+    if(!fresh.length){comm=merged;mine=[];persist();build();return sst('The community already knew all of that.')}
     const p=await fetch(API,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout: +${fresh.length} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout',facts:merged})),sha})});
-    if(p.ok){comm=merged;mine=[];S(localStorage,'sprout.mine','[]');build();return say(`Shared ${fresh.length} new thing${fresh.length>1?'s':''}. Everyone gets them the next time they open me.`)}
+    if(p.ok){comm=merged;mine=[];persist();build();return sst(`Shared ${fresh.length} new thing${fresh.length>1?'s':''}. Everyone gets them the next time they open me.`)}
     if(p.status!=409&&p.status!=422)throw p.status}
     throw 409
-  }catch(e){say(e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
+  }catch(e){sst(e==401?'GitHub rejected the token. Check that it is correct and has not expired.':e==403||e==404?`That token cannot write to ${REPO}. It needs access to that repository with Contents: read and write.`:`Sharing failed (${e}). Your lessons are still saved here, so try again in a moment.`)}}
 
-const isQ=v=>/\?\s*$/.test(v)||/^(what|who|when|where|why|how|which|tell me|explain)\b/i.test(v);
-function cmd(v){const c=v.slice(1).split(' ')[0].toLowerCase();
-  if(c=='upload')return upload();
-  if(c=='forget'){mine=[];add([]);return say('Cleared everything you taught me that was not shared yet.')}
-  say('Statements teach me and questions ask me. Write "question => answer" to teach a pair, or add .txt files. /upload shares what you taught me, /forget clears unshared lessons.')}
-function handle(v){
-  if(v[0]=='/')return cmd(v);
-  if(pend){const q=pend;pend=null;if(!isQ(v)){const n=add([{q,t:v}]);return say(n?'Learned it. Ask me again.':'I already knew that one.')}}
-  const m=v.split(/\s*=>\s*/);
-  if(m.length==2&&m[0]&&m[1]){const n=add([{q:m[0],t:m[1]}]);return say(n?'Learned that answer.':'I already knew that one.')}
-  if(isQ(v)){const r=ask(v);
-    if(r.length)return say(r.join('\n\n'));
-    pend=v;return say(idx.N?"I don't know that yet. Type the answer and I'll remember it, or ask something else.":"My mind is a blank page, so I can't answer yet. Type the answer and I'll remember it, or add a .txt file.")}
-  const n=add(chunks(v).length?chunks(v):[{t:v}]);
-  say(n?`Learned ${n} new thing${n>1?'s':''}. I know ${idx.N} in total.`:'I already knew that.')}
-async function files(list){for(const f of list){
-  if(!(/\.txt$/i.test(f.name)||f.type=='text/plain')){say(`I can only read .txt files, so I skipped ${f.name}.`);continue}
-  say(f.name,'me');const n=add(chunks(await f.text()));
-  say(n?`Read ${f.name} and learned ${n} new thing${n>1?'s':''}. I know ${idx.N} in total.`:`I found nothing new in ${f.name}.`)}}
-function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');handle(v)}
+function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');
+  const t=say('','bot typing');t.innerHTML='<i></i><i></i><i></i>';
+  setTimeout(()=>{t.remove();const r=gen(v,+$('#temp').value);
+    if(r)return say(r);
+    say(idx.N?"I don't know that yet.":"My mind is a blank page, so I have nothing to say yet.",'bot',['Teach me this',()=>{$('#txt').value=v+' => ';show('teach');$('#txt').focus()}])},350+Math.random()*350)}
+async function files(list){show('teach');let n=0,k=0;
+  for(const f of list)if(/\.txt$/i.test(f.name)||f.type=='text/plain'){n+=add(parse(await f.text(),12));k++}
+  tmsg(k?`Read ${k} file${k>1?'s':''} and learned ${n} new thing${n==1?'':'s'}.`:'I can only read .txt files.')}
 
+$('#t-chat').onclick=()=>show('chat');$('#t-teach').onclick=()=>show('teach');
 $('#go').onclick=send;
 inp.onkeydown=e=>{if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();send()}};
 inp.oninput=()=>{inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,120)+'px'};
+$('#learn').onclick=()=>{const v=$('#txt').value;if(!v.trim())return tmsg('Write or paste something first.');
+  const n=add(parse(v,3));tmsg(n?`Learned ${n} new thing${n>1?'s':''}.`:'I already knew all of that.');if(n)$('#txt').value=''};
 $('#fi').onchange=e=>{files([...e.target.files]);e.target.value=''};
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>{e.preventDefault();files([...e.dataTransfer.files])});
-$('#up').onclick=upload;$('#pill').onclick=async()=>{await load();say(`Synced. The community has taught me ${comm.length} things.`)};
-$('#tk').onclick=()=>{$('#set').hidden=!$('#set').hidden};
-$('#sv').onclick=()=>{const v=$('#tok').value.trim();if(!v)return;S(sessionStorage,'sprout.tk',v);S(localStorage,'sprout.tk',$('#rem').checked?v:null);$('#tok').value='';$('#set').hidden=true;say('Token saved. I can share what I learn now.')};
-$('#cl').onclick=()=>{S(sessionStorage,'sprout.tk',null);S(localStorage,'sprout.tk',null);say('Token removed from this browser.')};
+$('#up').onclick=upload;
+$('#pill').onclick=async()=>{await load();sst(`Synced. The community has taught me ${comm.length} things.`)};
+$('#sv').onclick=()=>{const v=$('#tok').value.trim();if(!v)return;S(sessionStorage,'sprout.tk',v);S(localStorage,'sprout.tk',$('#rem').checked?v:null);$('#tok').value='';sst('Token saved. You can share now.')};
+$('#cl').onclick=()=>{S(sessionStorage,'sprout.tk',null);S(localStorage,'sprout.tk',null);sst('Token removed from this browser.')};
 
 (async()=>{build();await load();
-  say(idx.N?`Hi, I'm Sprout. I've learned ${idx.N} things from you and the community. Ask me something, or teach me more.`:"Hi, I'm Sprout. I start with no knowledge at all. Teach me by typing facts or adding a .txt file, then ask me questions. Share what I learn and everyone's Sprout gets it.")})();
+  say(idx.N?`Hi, I'm Sprout. I've learned ${idx.N} things from you and the community. Ask me something.`:"Hi, I'm Sprout. I start with no knowledge at all. Open the Teach menu to give me facts or .txt files, then come back and ask me questions.",'bot',idx.N?null:['Open Teach',()=>show('teach')])})();
 </script>
 </body>
 </html>
