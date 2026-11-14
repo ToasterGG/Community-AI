@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Sprout – the community AI that starts empty</title>
+<title>Sprout 2.0 (Part 1) – the community AI that starts empty</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ctext y='30' font-size='30'%3E🌱%3C/text%3E%3C/svg%3E">
 <style>
 :root{--lift:56px;color-scheme:light dark;--bg:#eef3f0;--panel:#fff;--soft:#e0eae4;--ink:#14211b;--mut:#5a6b61;--leaf:#1f8a55;--soil:#8a6a50;--line:#d3ddd7;--on:#fff}
@@ -74,6 +74,11 @@ ul{list-style:none;padding:0;margin:0}
 li{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}
 li:last-child{border-bottom:0}
 li button{flex:none;padding:4px 10px;font-size:12.5px}
+#brain{flex:1;overflow-y:auto;padding:4px 14px calc(28px + env(safe-area-inset-bottom))}
+#brain section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px}
+#brain progress{width:100%;accent-color:var(--leaf)}#bs{white-space:pre-wrap;font:inherit}
+#brain select{font:15px system-ui;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+li small{display:block;color:var(--mut);font-size:12px}
 </style>
 </head>
 <body>
@@ -86,6 +91,7 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
 <nav role="tablist">
   <button role="tab" id="t-chat" aria-selected="true">Chat</button>
   <button role="tab" id="t-teach" aria-selected="false">Teach</button>
+  <button role="tab" id="t-brain" aria-selected="false">Brain</button>
 </nav>
 
 <main id="chat">
@@ -97,6 +103,19 @@ li button{flex:none;padding:4px 10px;font-size:12.5px}
       <button id="go" class="pri" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
     </div>
   </div>
+</main>
+
+<main id="brain" hidden>
+  <div class="stats"><div><b id="b1">0</b>memories</div><div><b id="b2">0</b>graph links</div><div><b id="b3">0</b>concepts</div></div>
+  <section><h2>Live reasoning</h2><p class="hint">The real stages from the last message Sprout handled, written by the engine as it ran.</p><ul id="trace"></ul></section>
+  <section><h3>Import a brain file</h3><p class="hint">Load sprout_brain.txt or any file in the same record format. It is read in small slices so the page stays responsive, and you can cancel. Your existing memories are kept.</p>
+    <div class="row"><label class="btn" for="bf">Choose file</label><input id="bf" type="file" accept=".txt,text/plain" hidden><button id="bx" disabled>Cancel</button></div>
+    <progress id="bp" value="0" max="1" hidden></progress><p id="bs" class="hint" aria-live="polite"></p></section>
+  <section><h3>Type brain info</h3><p class="hint">One fact per line: <b>Penguins are birds</b>, <b>Birds can fly</b>, or <b>question => answer</b>. Or paste full records like [FACT] ... [/FACT]. Saved as taught by you.</p>
+    <textarea id="bi" rows="5" style="width:100%" placeholder="Dolphins are mammals&#10;What is a sprout? => A young plant"></textarea><div class="row"><button id="ba" class="pri">Add to brain</button></div><p id="bm" class="hint" aria-live="polite"></p></section>
+  <section><h3>Intent network</h3><p class="hint">A small neural net trained from scratch in this browser on conversation examples from the brain file plus your chat lines (labelled by my rules). It only overrides the rules for casual messages and slang.</p><div class="row"><button id="bn">Train now</button></div><p id="bns" class="hint"></p></section>
+  <section><h3>Browse memory</h3><div class="row"><select id="bt" aria-label="Memory type"><option value="personal">Personal</option><option value="episodic">Episodic</option><option value="semantic">Semantic</option><option value="procedural">Procedural</option><option value="graph">Knowledge graph</option></select></div><ul id="bl"></ul></section>
+  <section><h3>Personality</h3><label class="hint"><input type="checkbox" id="sw"> Let Sprout swear now and then</label></section>
 </main>
 
 <main id="teach" hidden>
@@ -322,7 +341,7 @@ async function upload(){
 function send(){const v=inp.value.trim();if(!v)return;inp.value='';inp.style.height='auto';say(v,'me');
   const t=say('','bot typing');t.innerHTML='<i></i><i></i><i></i>';
   setTimeout(()=>{t.remove();const g=gen(v,+$('#temp').value),tm=['Teach me the real answer',()=>{$('#txt').value=v+' => ';show('teach');$('#txt').focus()}];
-    if(g){const q=v.slice(0,300);say(g.text,'bot',g.guessed?tm:null,g.guessed?'This response had guesses included.':null,{q,text:g.text,src:g.src,cont:g.cont,prevq:g.prevq});
+    if(g){const q=v.slice(0,300);say(g.text,'bot',g.guessed?tm:null,g.guessed?'This response had guesses included.':g.note||null,g.nofb?null:{q,s2:g.s2,text:g.plain||g.text,src:g.src,cont:g.cont,prevq:g.prevq});
       if(autoLearn()&&!g.guessed&&!g.cont&&g.src&&g.cov>=.6)setTimeout(()=>add([{q,t:g.src}]),0);return}
     say("My mind is a blank page, so I have nothing to say yet.",'bot',['Open Teach',()=>show('teach')])},350+Math.random()*350)}
 async function files(list){show('teach');let n=0,r=0,k=0;tmsg('Reading…');
@@ -369,6 +388,221 @@ $('#cl').onclick=()=>{S(sessionStorage,'sprout.tk',null);S(localStorage,'sprout.
 
 (async()=>{build();await load();
   say(idx.N?`Hi, I'm Sprout. I've learned ${idx.N} things from you and the community. Ask me something.`:"Hi, I'm Sprout. I start with no knowledge at all. Open the Teach menu to give me facts or .txt files, then come back and ask me questions.",'bot',idx.N?null:['Open Teach',()=>show('teach')])})();
+</script>
+<script>
+/* ===== Sprout 2.0 · Part 1 engine. No pretrained models: BM25 + co-occurrence retrieval, rule-based graph reasoning. ===== */
+const S2=(()=>{
+const ST=['personal','episodic','semantic','procedural','graph'],mem={personal:[],episodic:[],semantic:[],procedural:[]},G=[],KS=new Set(),pend={};
+let XD=[],NNinfo={n:0,acc:0,ok:0},W1,B1,W2,B2,SRC='brain',db=null,pt=0,TR=[],last='',DF=nul(),CO=nul(),N=1,AVG=1,dirty=1,cancel=0;
+const nid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6),nk=s=>s.toLowerCase().replace(/[^\p{L}\p{N} ]/gu,'').replace(/\s+/g,' ').trim();
+const ca=s=>nk(s).replace(/^(a|an|the) /,'').split(' ').map((w,i,a)=>i<a.length-1?w:w.replace(/ies$/,'y').replace(/(s|x|ch|sh)es$/,'$1').replace(/([^su])s$/,'$1')).join(' ');
+const jac=(a,b)=>{let i=0;a.forEach(x=>b.has(x)&&i++);return i/(a.size+b.size-i||1)};
+const art=w=>(/^[aeiou]/.test(w)?'an ':'a ')+w,cap=s=>s[0].toUpperCase()+s.slice(1),rt=r=>({isa:'is',can:'can',cannot:"can't",has:'has'}[r]||r);
+/* IndexedDB: writes are queued and flushed in one transaction per store */
+const open=()=>new Promise(r=>{try{const q=indexedDB.open('sprout2',2);q.onupgradeneeded=()=>[...ST,'model'].forEach(s=>q.result.objectStoreNames.contains(s)||q.result.createObjectStore(s,{keyPath:'id'}));q.onsuccess=()=>{db=q.result;r(1)};q.onerror=q.onblocked=()=>r(0)}catch{r(0)}});
+const flush=()=>{pt=0;if(!db)return;for(const s of Object.keys(pend)){const a=pend[s];delete pend[s];try{const o=db.transaction(s,'readwrite').objectStore(s);a.forEach(x=>x.__del?o.delete(x.id):o.put(x))}catch{}}};
+const put=(s,o)=>{if(!db)return;(pend[s]||(pend[s]=[])).push(o);pt||(pt=setTimeout(flush,40))};
+const gall=s=>new Promise(r=>{if(!db)return r([]);const q=db.transaction(s).objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>r([])});
+/* Memory: create / dedupe (exact, or fuzzy for chat) / reinforce / correct / delete */
+function remember(ty,text,o={}){const tk=tok(o.idx||text);if(!tk.length)return null;const k=ty+'|'+nk(text);
+  const d=KS.has(k)?mem[ty].find(m=>nk(m.text)==nk(text)):o.fuzzy?mem[ty].find(m=>jac(new Set(tk),new Set(m.tk))>=.8):null;
+  if(d){d.n++;d.imp=Math.min(1,d.imp+.05);d.t=Date.now();put(ty,d);return{m:d,dup:1}}
+  const m={id:nid(),ty,text,tk,a:o.a,q:o.q,kind:o.kind,imp:o.imp??.5,conf:o.conf??1,src:o.src||'user',n:1,t:Date.now(),hist:[]};
+  mem[ty].push(m);KS.add(k);put(ty,m);dirty=1;return{m,dup:0}}
+function fix(ty,id,text){const m=mem[ty].find(x=>x.id==id);if(!m||!text.trim())return false;m.hist.push({was:m.text,t:Date.now()});KS.delete(ty+'|'+nk(m.text));m.text=text;m.tk=tok(text);m.t=Date.now();KS.add(ty+'|'+nk(text));put(ty,m);dirty=1;return true}
+function drop(ty,id){if(ty=='graph'){const i=G.findIndex(g=>g.id==id);i>=0&&G.splice(i,1)}else{const i=mem[ty].findIndex(m=>m.id==id);if(i>=0){KS.delete(ty+'|'+nk(mem[ty][i].text));mem[ty].splice(i,1)}}put(ty,{id,__del:1});dirty=1}
+/* Knowledge graph: triples with source + confidence; a contradiction replaces the old triple but keeps it in history */
+function link(a,r,b,o={}){a=ca(a);b=ca(b);if(!a||!b)return null;const d=G.find(x=>x.a==a&&x.r==r&&x.b==b);if(d){d.n++;put('graph',d);return{dup:1}}
+  const opp={can:'cannot',cannot:'can'}[r],c=opp&&G.find(x=>x.a==a&&x.r==opp&&x.b==b);
+  if(c&&c.src=='user'&&o.src=='brain')return{dup:1,conflict:1};
+  const x={id:nid(),a,r,b,src:o.src||'user',conf:o.conf??.9,n:1,t:Date.now(),hist:[]};
+  if(c){x.hist.push({was:`${c.a} ${c.r} ${c.b}`,src:c.src,t:c.t});G.splice(G.indexOf(c),1);put('graph',{id:c.id,__del:1})}
+  G.push(x);put('graph',x);dirty=1;return{dup:0,replaced:c?`${c.a} ${c.r} ${c.b}`:null}}
+const up=e=>{const m=new Map([[e,{d:0}]]),q=[e];while(q.length){const x=q.shift();for(const g of G)if(g.a==x&&g.r=='isa'&&g.conf>=.2&&!m.has(g.b)){m.set(g.b,{d:m.get(x).d+1,via:x,g});q.push(g.b)}}return m};
+const gt=g=>g.r=='isa'?`${g.a} is ${art(g.b)}`:`${g.a} ${rt(g.r)} ${g.b}`;
+/* Deduction over is-a links. The nearest can/cannot wins, so "penguin cannot fly" overrides "bird can fly". */
+function prove(e,r,b){const A=up(e),ord=[...A.entries()].sort((p,q)=>p[1].d-q[1].d),edges=x=>{const o=[];for(let c=x;A.get(c).via!==undefined;c=A.get(c).via)o.unshift(A.get(c).g);return o};
+  if(r=='isa'){if(!A.has(b)||b==e)return null;const u=edges(b);return{ans:true,used:u,conf:Math.max(.5,.95-.1*u.length)*Math.min(1,Math.min(...u.map(e=>e.conf))/.9)}}
+  const pos=r=='has'?'has':'can',neg=r=='has'?'#':'cannot';
+  for(const [x,{d}] of ord){const h=G.find(g=>g.conf>=.2&&g.a==x&&g.b==b&&(g.r==pos||g.r==neg));
+    if(h){const yes=h.r==pos,u=[...edges(x),h],ex=!yes&&ord.find(([y,v])=>v.d>d&&G.some(g=>g.a==y&&g.b==b&&g.r=='can'));
+      return{ans:yes,used:u,conf:h.conf*Math.pow(.92,d),exc:ex&&ex[0]}}}
+  return null}
+/* Retrieval: BM25 over memories, expanded with words that co-occur with the query words, scaled by importance and age */
+function reindex(){dirty=0;DF=nul();CO=nul();let L=0,n=0;const add=tk=>{const s=[...new Set(tk)].slice(0,24);L+=tk.length;n++;s.forEach(w=>{DF[w]=(DF[w]||0)+1;const o=CO[w]||(CO[w]=nul());s.forEach(v=>{if(v!==w)o[v]=(o[v]||0)+1})})};
+  Object.values(mem).forEach(a=>a.forEach(m=>add(m.tk)));G.forEach(g=>add(tok(g.a+' '+g.b)));N=n||1;AVG=L/n||1}
+const rel=w=>{const o=CO[w];return o?Object.entries(o).filter(x=>x[1]>=2).map(([v,c])=>[v,c/Math.sqrt(DF[w]*DF[v])]).filter(x=>x[1]>.35).sort((a,b)=>b[1]-a[1]).slice(0,3):[]};
+function search(q,ty,k=3){if(dirty)reindex();const qt=[...new Set(tok(q))].filter(w=>!/^(lol|lmao|haha|pls|plz|bro|tbh|ngl|idk)$/.test(w));if(!qt.length)return[];const ex=nul();
+  qt.forEach(w=>rel(w).forEach(([v,s])=>{if(!qt.includes(v))ex[v]=Math.max(ex[v]||0,s*.6)}));
+  const terms=[...qt.map(w=>[w,1]),...Object.entries(ex)],now=Date.now(),seen=qt.filter(w=>DF[w]),rq=seen.sort((a,b)=>DF[a]-DF[b])[0];
+  return[].concat(...ty.map(t=>mem[t])).filter(m=>!m.kind).map(d=>{const tf=nul();d.tk.forEach(w=>tf[w]=(tf[w]||0)+1);let s=0,hit=0;
+    terms.forEach(([w,wt],i)=>{const f=tf[w];if(!f)return;if(i<qt.length)hit++;s+=wt*Math.log(1+(N-(DF[w]||0)+.5)/((DF[w]||0)+.5))*f*2.2/(f+1.2*(.25+.75*d.tk.length/AVG))});
+    if(rq&&!tf[rq])hit*=.5;s*=(.7+.6*d.imp)/(1+(now-d.t)/(365*864e5))*(.3+hit/qt.length)**2;return{d,s,cov:hit/qt.length,ex:Object.keys(ex)}}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,k)}
+/* Language: intent from surface features, question and statement parsing */
+const PERS=/^(?:remember (?:that )?)?(my\b|i(?:'m| am| like| love| hate| work| live| study| play| have| want| can)\b)/i,PRON=/^(it|this|that|i|you|he|she|we|they|there|what|who|my|your)\b/i;
+function parseT(s){s=s.trim().replace(/[.!]+$/,'');if(/\?|\b(not|never)\b/i.test(s.replace(/can ?not|can't|cannot/gi,'')))return null;let m,o;
+  if(m=s.match(/^(.+?)\s+(cannot|can't|can not|cant|can)\s+(\w+(?: \w+)*)$/i))o={a:m[1],r:/^can$/i.test(m[2])?'can':'cannot',b:m[3]};
+  else if(m=s.match(/^(.+?)\s+(?:has|have)\s+(?:a |an )?(.+)$/i))o={a:m[1],r:'has',b:m[2]};
+  else if(m=s.match(/^(.+?)\s+(?:is|are)\s+(?:a |an |the )?(.+)$/i))o={a:m[1],r:'isa',b:m[2]};
+  return o&&!PRON.test(o.a)&&o.a.split(' ').length<=3&&o.b.split(' ').length<=5?o:null}
+function parseQ(s){s=s.replace(/[?!.]+$/,'').trim();let m;
+  if(m=s.match(/^(?:can|could)\s+(?:a |an |the )?(.+)\s+(\w+)$/i))return{r:'can',e:m[1],b:m[2]};
+  if(m=s.match(/^(?:do|does)\s+(?:a |an |the )?(.+?)\s+have\s+(?:a |an )?(.+)$/i))return{r:'has',e:m[1],b:m[2]};
+  if(m=s.match(/^(?:is|are)\s+(?:a |an |the )?(.+?)\s+(?:a|an)\s+(.+)$/i)||s.match(/^(?:is|are)\s+(.+)\s+(\w+)$/i))return{r:'isa',e:m[1],b:m[2]};
+  if(m=s.match(/^what\s+(?:is|are)\s+(?:a |an |the )?(.+)$/i))return{r:'what',e:m[1]};
+  return null}
+function intent(q){const s=q.trim(),l=s.toLowerCase().replace(/’/g,"'"),w=[];let kind='statement';
+  const Q=/\?\s*$/.test(s)||/^(what|why|how|who|when|where|which|can|could|do|does|did|is|are|am|should|would|will)\b/.test(l);
+  if(/^(hi|hey|yo|sup|hello|howdy)\b/.test(l)&&s.length<20){kind='greeting';w.push('opens with a greeting')}
+  else if(/^(no|nope|wrong|actually|that's wrong)\b/.test(l)){kind='correction';w.push('starts with a negation')}
+  else if(/\b(explain|describe|tell me about|walk me through)\b/.test(l)){kind='explain';w.push('explain/describe wording')}
+  else if(Q){kind='question';w.push(/\?\s*$/.test(s)?'ends with ?':'starts with a question word')}
+  else if(PERS.test(l)||parseT(s)){kind='teach';w.push('declarative statement that parses as a fact')}
+  else if(/^(tell|show|give|list|help|make|write|find)\b/.test(l)){kind='instruction';w.push('imperative verb first')}
+  else if(/\b(lol|lmao|haha)\b/.test(l)){kind='joke'}
+  else if(/\b(sad|angry|happy|excited|tired|bored|stressed|anxious|ugh)\b/.test(l)){kind='emotion'}
+  let by='rules';if(['statement','joke','emotion'].includes(kind)){const n=nnPredict(s);if(n&&n.p>=.7&&n.l!=kind){w.push(`neural net chose ${n.l} (${Math.round(n.p*100)}%) over the rules' ${kind}`);kind=n.l;by='nn'}}
+  return{kind,by,ref:/\b(it|that|they|them|earlier|before)\b/.test(l),why:w.join('; ')}}
+/* Personality v0: tone comes from confidence; a tangent comes from real graph neighbours */
+const p1=a=>a[Math.random()*a.length|0];
+function flav(t,c,e,ser){if(ser)return(PR('serious')?PR('serious')+' ':'')+t;
+  const o=c>=.85?['Easy.','Ha, got this one.','Okay so,','Bet.']:c>=.6?['Pretty sure,','Working it out here,','Okay if I think about it,']:["Don't quote me,",'Honestly not sure, but'];
+  let op=Math.random()<.7?p1(o):'';if(c<.6&&PR('unsure'))op=PR('unsure');
+  const sw=S(localStorage,'sprout.swear')==='1'&&Math.random()<.4?p1([' Damn.',' Hell yeah.']):'';
+  let x=op?(/,$/.test(op)?op+' '+t[0].toLowerCase()+t.slice(1):op+' '+t):t;
+  const nb=e&&G.filter(g=>g.a==e&&g.r!='isa');if(nb&&nb.length&&Math.random()<.3){const g=p1(nb);x+=` ${PR('related')||'Random tangent:'} ${cap(art(e))} ${rt(g.r)} ${g.b}.`}
+  return x+sw}
+/* Reasoning pipeline: every stage writes to the trace the Brain tab shows */
+function run(q){TR=[];const t=(a,b)=>TR.push([a,b]);let s=LP(q.trim()),corr=0;const I=intent(s),ser=SER.test(s),auto=typeof autoLearn=='function'?autoLearn():true;t('Intent',`${I.kind}${I.ref?' (has a back-reference)':''}${I.why?': '+I.why:''}`);
+  const fin=(text,o={})=>{const c=o.conf??.9;if(o.e)last=o.e;const tx=[...tok(text),...(o.ctx||[])],qs=new Set([...tk,...tok(o.e||'')]);
+    if(!o.nofb&&!tx.some(w=>qs.has(w))){t('Self-check','reply shares no concept with the question, so I dropped it');return null}
+    t('Self-check',`reply covers the topic; confidence ${Math.round(c*100)}%`);return{text:o.raw?text:flav(text,c,o.e,ser),s2:o.ref,plain:text,note:o.note,guessed:false,nofb:o.nofb}};
+  if(I.kind=='correction'){s=s.replace(/^(no|nope|wrong|actually|that'?s wrong)[,.! ]*/i,'');I.kind='teach';corr=1;t('Correction','treating the rest as a corrected statement; newer replaces older and the old one stays in history')}
+  if(I.ref&&last&&tok(s).length<=2){const r=s.replace(/\b(it|that|they|them)\b/i,last);if(r!==s){t('Reference',`pronoun resolved to “${last}” (latest topic)`);s=r}}
+  const tk=[...new Set(tok(s))];if(dirty)reindex();const ex=[...new Set(tk.flatMap(w=>rel(w).map(x=>x[0])))].slice(0,6);
+  t('Concepts',(tk.join(', ')||'none')+(ex.length?` · related by co-occurrence: ${ex.join(', ')}`:''));
+  if(HARM.test(s)){t('Personality','self-harm wording: serious reply, nothing stored');return fin("That sounds really heavy, and I'm only a small bot in a browser. Please talk to someone you trust right now, or contact a local crisis line or emergency number if you might act on it. I'm happy to keep chatting, but a real person matters more here.",{conf:1,nofb:1,raw:1})}
+  if(ser&&!['question','explain'].includes(I.kind)){t('Personality','serious topic: jokes, swearing and tangents off');return fin("I'm sorry, that sounds really hard. I'm not great with the big stuff, but I'm here if you want to talk about it.",{conf:1,nofb:1,raw:1})}
+  if(['greeting','social','emotion','joke'].includes(I.kind)){const ex=convs(I.kind,s);if(ex){t('Conversation example',`replayed a taught example (“${ex.user}”) for intent ${I.kind}`);return fin(ex.sprout,{conf:1,nofb:1,raw:1})}}
+  if(I.kind=='greeting'){t('Plan','greet and state what is loaded');const n=Object.values(mem).reduce((a,b)=>a+b.length,0);return fin(`Yo! I've got ${n} memories and ${G.length} links loaded. What's up?`,{conf:1,nofb:1})}
+  if(I.kind=='teach'){
+    if(!auto){t('Learning','auto-learn from chat is off (Teach tab), so nothing was stored');return fin("Cool. I'm not saving chat statements right now because auto-learning is off.",{conf:1,nofb:1,raw:1})}
+    if(HEDGE.test(s)){t('Learning','hedged wording, not confident enough to store');return fin("That sounds like a guess, so I'm not storing it. Say it flat out if you're sure.",{conf:1,nofb:1,raw:1})}
+    if(PERS.test(s.replace(/’/g,"'"))){const x=remember('personal',s.replace(/^remember (that )?/i,''),{imp:.8,fuzzy:1});t('Memory',`personal memory ${x.dup?'reinforced':'created'}, stored as you said it, nothing inferred`);return fin(x.dup?'Yeah, you already told me that.':"Noted, I'll remember that about you.",{nofb:1})}
+    const p=parseT(s);if(p){const a=ca(p.a),b=ca(p.b),opp={can:'cannot',cannot:'can'}[p.r],old=opp&&G.find(x=>x.a==a&&x.r==opp&&x.b==b);
+      if(old&&!corr){t('Check',`contradicts “${gt(old)}” (${sl(old.src)}); not overwriting without an explicit correction`);return fin(`Hmm, that clashes with what I know (“${gt(old)}”). If you're sure, say "no, ..." and I'll switch.`,{e:a,nofb:1})}
+      if(p.r=='isa'&&(/^(in|on|at|from|to|very|so|just|really|going|being|too|kind of|sort of|a bit)\b/i.test(p.b)||/\b(and|but|or|because|when)\b/i.test(p.b))){const y=remember('semantic',s,{src:'chat',conf:.6,imp:.4,fuzzy:1});t('Memory',y&&y.dup?'loose fact already stored':'stored as a loose semantic fact (not a graph link) at 60% confidence');return fin('Noted that as a loose fact, not a solid link.',{e:a,note:'Basis: learned from chat, 60% sure.',nofb:1})}
+      const x=link(p.a,p.r,p.b,{src:corr?'user':'chat',conf:corr?.9:.75});t('Graph',x.dup?'already known, reinforced':x.replaced?`contradicted “${x.replaced}”; replaced, old kept in history`:`new link created (${corr?'your correction, 90%':'learned from chat, 75%'})`);
+      return fin(`Got it: ${art(a)} ${rt(p.r)} ${p.r=='isa'?art(b):b}.`+(x.replaced?` ${PR('corrects')||'That clashes with what I had'} (“${x.replaced}”) so I'm using yours and keeping the old one in history.`:''),{e:a,note:`Basis: ${corr?'your correction':'learned from chat'}, not verified.`,nofb:1})}}
+  if(/\b(earlier|last time|we (talked|discussed|said)|did i (say|ask))\b/i.test(s)){const h=search(s.replace(/\b(earlier|last time|we|talked|discussed|said|did|i|ask)\b/gi,''),['episodic'],2);t('Episodic',h.length?`${h.length} past message(s) matched`:'nothing matched');
+    if(h.length)return fin('Earlier you said: “'+h[0].d.text+'”',{conf:.7,note:'Basis: your own earlier message, quoted.',nofb:1})}
+  if(/\b(my name|about me|who am i|what do i (like|love|hate)|do you (know|remember) me)\b/i.test(s)){const h=mem.personal.slice(-3);t('Personal memory',`${mem.personal.length} entries`);
+    return fin(h.length?'Here is what you told me: '+h.map(x=>x.text).join('; ')+'.':"You haven't told me anything about you yet.",{conf:1,note:'Basis: only what you explicitly told me.',nofb:1})}
+  const g=I.kind=='teach'?null:parseQ(s);
+  if(g&&g.r!='what'){const e=ca(g.e),b=ca(g.b),p=prove(e,g.r,b);t('Graph',p?p.used.map(gt).join(' → '):`no path from “${e}” to “${b}”`);
+    if(p){const sub=cap(art(e)),by=p.used.length>1?`, since ${p.used.map(gt).join(', and ')}`:'';t('Check',p.exc?`exception found: ${p.exc} normally can ${b}, but a closer fact overrides it`:'no conflicting fact found');
+      const text=g.r=='isa'?`Yep, ${art(e)} is ${art(b)}${by}.`:g.r=='has'?`Yes, ${art(e)} has ${nk(g.b).replace(/^(a|an|the) /,'')}${by}.`:p.ans?`${sub} can ${b}${by}.`:`${sub} can't ${b}${by}.`+(p.exc?` Even though ${p.exc} can ${b}, ${e} is the exception.`:'');
+      const srcs=[...new Set(p.used.map(x=>sl(x.src)))].join(' + ');
+      return fin(text,{e,ref:{ed:p.used.map(x=>x.id)},conf:p.conf,note:`Basis: ${srcs}${p.used.length>1?', deduced by combining facts':''}. Confidence ~${Math.round(p.conf*100)}%.`})}}
+  const h=search(s,['semantic','procedural'],3);t('Retrieval',h.length?h.map(x=>`“${x.d.text.slice(0,40)}…” score ${x.s.toFixed(1)}, covers ${Math.round(x.cov*100)}%`).join(' | '):'nothing relevant in semantic or procedural memory');
+  const b=h[0];if(b&&b.cov>=.6){const c=b.d.conf*Math.min(1,b.cov+.2),part=b.cov<.8;t('Plan',`answer from top memory${part?', flagged as a partial match':''}`);
+    return fin((part?'Closest thing I know: ':'')+(b.d.a||b.d.text),{e:tk[0],ctx:b.d.tk,ref:{mem:b.d.id,ty:b.d.ty},conf:c,note:`Basis: ${sl(b.d.src)}${part?' (partial match)':''}. Confidence ~${Math.round(c*100)}%.`})}
+  if(g&&g.r=='what'){const e=ca(g.e),A=[...up(e)].filter(([x])=>x!=e),own=G.filter(x=>x.a==e&&x.r!='isa').slice(0,3);t('Graph',`${A.length} ancestors, ${own.length} own facts for “${e}”`);
+    if(A.length||own.length)return fin(`${cap(art(e))}${A.length?' is '+A.slice(0,3).map(x=>art(x[0])).join(', so also '):' is something I only know loose facts about'}.`+own.map(x=>` ${cap(art(e))} ${rt(x.r)} ${x.b}.`).join(''),{e,conf:.8,note:'Basis: knowledge graph links.'})}
+  t('Fallback','nothing confident, so the v11 word-pattern generator takes over and flags its guesses');return null}
+function answer(q){const r=run(q);try{const I=intent(q);if(q.trim().length>3&&!SER.test(q)&&!HARM.test(q)){if(I.by=='rules'&&LAB.includes(I.kind)){XD.push({t:q.trim().slice(0,160),l:I.kind});if(XD.length>500)XD.shift();put('model',{id:'intentdata',d:XD})}remember('episodic',q.trim().slice(0,200),{imp:I.kind=='teach'?.8:.3,src:'chat'});if(mem.episodic.length>400){const w=[...mem.episodic].sort((a,b)=>a.imp-b.imp||a.t-b.t)[0];drop('episodic',w.id)}}}catch{}return r}
+/* Brain file importer: records are parsed in slices that yield to the browser; cancellable */
+const NEED={FACT:['answer'],CONCEPT:['name','definition'],RELATIONSHIP:['entity a','relationship','entity b'],PROCEDURE:['name','steps'],REASONING_RULE:['situation','conclusion'],LANGUAGE_PATTERN:['pattern'],CONVERSATION_EXAMPLE:['user','sprout'],PERSONALITY_RULE:['situation','behaviour']};
+const rec=b=>{const f={};let k=null;b.split('\n').forEach(l=>{const m=l.match(/^([A-Za-z][A-Za-z ]{0,24}):\s?(.*)$/);if(m){k=m[1].trim().toLowerCase();f[k]=(f[k]?f[k]+' ':'')+m[2].trim()}else if(k&&l.trim())f[k]+=' '+l.trim()});return f};
+const cf=s=>{const n=parseFloat(s);return isNaN(n)?.8:n>1?Math.min(1,n/100):n};
+const rn=r=>{r=r.toLowerCase().trim();return/^(is an?|are|isa|type of|is a kind of)$/.test(r)?'isa':/^(can't|cannot|can not|cant)$/.test(r)?'cannot':r};
+function ingest(tag,f){const R=(ty,text,o)=>{const x=remember(ty,text,{src:SRC,...o});return x?(x.dup?'dup':'ok'):'bad'};
+  switch(tag){
+    case'FACT':return R('semantic',`${f.question||''} ${f.answer}`.trim(),{q:f.question,a:f.answer,idx:[f.topic,f.question,f.answer,f['related concepts']].join(' '),conf:cf(f.confidence)});
+    case'CONCEPT':return R('semantic',`${f.name}: ${f.definition}`,{a:`${f.name}: ${f.definition}${f.examples?' Examples: '+f.examples:''}`,idx:`${f.name} ${f.definition} ${f['related concepts']||''}`});
+    case'RELATIONSHIP':{const x=link(f['entity a'],rn(f.relationship),f['entity b'],{src:SRC,conf:.9});return!x?'bad':x.conflict?'conflict':x.dup?'dup':'ok'}
+    case'PROCEDURE':return R('procedural',`${f.name}: ${f.steps}`,{a:`${f.name}${f.purpose?' ('+f.purpose+')':''}: ${f.steps}`});
+    default:return R('procedural',Object.entries(f).map(([k,v])=>k+': '+v).join(' | '),{kind:tag.toLowerCase()})}}
+const WSRC=String.raw`const rec=${rec};onmessage=e=>{const text=e.data,re=/\[([A-Z_]+)\]([\s\S]*?)\[\/\1\]/g,opens=(text.match(/^\s*\[[A-Z_]+\]\s*$/gm)||[]).length;let m,all=0,b=[];while(m=re.exec(text)){all++;b.push([m[1],rec(m[2]),m.index/text.length]);if(b.length>=200){postMessage({b});b=[]}}postMessage({b,done:1,all,opens})}`;
+let W=null,WR=null;
+const take=(tag,f,sum)=>{const r=f&&NEED[tag]&&NEED[tag].every(k=>f[k])?ingest(tag,f):'bad';sum[r]++;if(r=='ok'){sum.by[tag]=(sum.by[tag]||0)+1;if(tag=='REASONING_RULE')sum.parked++}};
+const viaWorker=(text,prog,sum)=>new Promise((res,rej)=>{let w,got=0;try{w=new Worker(URL.createObjectURL(new Blob([WSRC],{type:'text/javascript'})))}catch{return rej({early:1})}
+  W=w;WR=res;w.onerror=()=>{w.terminate();W=null;rej(got?{late:1}:{early:1})};
+  w.onmessage=e=>{got=1;const d=e.data;d.b.forEach(([tag,f])=>take(tag,f,sum));prog&&prog(d.b.length?d.b[d.b.length-1][2]:1,sum);if(d.done){w.terminate();W=null;sum.all=d.all;sum.opens=d.opens;res()}};
+  w.postMessage(text)});
+/* Parsing runs in a Web Worker; records come back in batches of 200 and are stored on the main thread. Falls back to timed slices if no worker. */
+async function importText(text,prog,src){cancel=0;SRC=src||'brain';text=text.replace(/^#.*$/gm,'');const sum={ok:0,dup:0,bad:0,conflict:0,parked:0,by:{},via:'web worker'};
+  try{await viaWorker(text,prog,sum)}catch(e){if(e&&e.late){sum.bad++;sum.cancelled=1}else{sum.via='main thread';sum.all=0;sum.opens=(text.match(/^\s*\[[A-Z_]+\]\s*$/gm)||[]).length;const re=/\[([A-Z_]+)\]([\s\S]*?)\[\/\1\]/g;let m,t0=performance.now();
+    while(m=re.exec(text)){sum.all++;take(m[1],NEED[m[1]]?rec(m[2]):null,sum);if(performance.now()-t0>30){prog&&prog(m.index/text.length,sum);await new Promise(r=>setTimeout(r));t0=performance.now();if(cancel){sum.cancelled=1;break}}}}}
+  if(cancel)sum.cancelled=1;if(!sum.cancelled)sum.bad+=Math.max(0,sum.opens-sum.all);flush();dirty=1;return sum}
+/* ===== Part 3: personality data, intent network, feedback, typed brain input ===== */
+const SER=/\b(died|dies|death|funeral|cancer|hospital|abused?|depressed|panic|grief|passed away)\b/i,HARM=/\b(kill myself|suicid\w*|end my life|self.?harm|hurt myself|want to die)\b/i,HEDGE=/\b(i think|maybe|probably|might|i guess|i heard|not sure|idk|supposedly|apparently|lol|lmao)\b/i;
+const F=m=>m.f||Object.fromEntries(m.text.split(' | ').map(x=>{const i=x.indexOf(': ');return[x.slice(0,i),x.slice(i+2)]})),RC=k=>mem.procedural.filter(m=>m.kind==k).map(F);
+const PR=w=>{const r=RC('personality_rule').find(f=>(f.situation||'').toLowerCase().includes(w));return r&&r.example};
+const sl=s=>s=='brain'?'brain file':s=='chat'?'learned from chat':'taught by you';
+const LP=s=>RC('language_pattern').filter(f=>/^informal for /i.test(f.meaning||'')&&/^\w+$/.test(f.pattern||'')).reduce((a,f)=>a.replace(new RegExp('\\b'+f.pattern+'\\b','gi'),f.meaning.replace(/^informal for /i,'')),s);
+function convs(kind,s){const q=new Set(tok(s)),L=RC('conversation_example').filter(f=>(f.intent||'').toLowerCase()==kind&&f.user&&f.sprout);if(!L.length)return null;
+  const r=L.map(f=>[jac(q,new Set(tok(f.user)))+Math.random()*.01,f]).sort((a,b)=>b[0]-a[0])[0];return r[0]<.25&&!['greeting','social','joke'].includes(kind)?null:r[1]}
+/* Intent network: hashed word + character-trigram features -> 20 tanh units -> softmax over intents. Random init, plain SGD, no pretrained weights. */
+const LAB=['greeting','social','question','teach','correction','explain','instruction','joke','emotion','statement'],IN=256,H=20;
+const gauss=()=>Math.sqrt(-2*Math.log(Math.random()||1e-9))*Math.cos(6.2831853*Math.random());
+function initNN(){W1=Float32Array.from({length:IN*H},()=>gauss()*Math.sqrt(1/IN));B1=new Float32Array(H);W2=Float32Array.from({length:H*LAB.length},()=>gauss()*Math.sqrt(1/H));B2=new Float32Array(LAB.length)}
+const hx=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0)%IN};
+const feat=s=>{const l=' '+s.toLowerCase().replace(/[^\p{L}\p{N}'?! ]/gu,'').replace(/(.)\1{2,}/g,'$1$1')+' ',x=new Float32Array(IN);l.split(' ').forEach(w=>w&&(x[hx('w'+w)]+=1));for(let i=0;i<l.length-2;i++)x[hx(l.slice(i,i+3))]+=.5;const n=Math.hypot(...x)||1;return x.map(v=>v/n)};
+function fwd(x){const L=LAB.length,h=new Float32Array(H),o=new Float32Array(L);for(let j=0;j<H;j++){let s=B1[j];for(let i=0;i<IN;i++)if(x[i])s+=x[i]*W1[i*H+j];h[j]=Math.tanh(s)}let m=-1e9;for(let k=0;k<L;k++){let s=B2[k];for(let j=0;j<H;j++)s+=h[j]*W2[j*L+k];o[k]=s;if(s>m)m=s}let z=0;for(let k=0;k<L;k++)z+=o[k]=Math.exp(o[k]-m);for(let k=0;k<L;k++)o[k]/=z;return{h,o}}
+function step(x,y,lr){const{h,o}=fwd(x),L=LAB.length,d2=new Float32Array(L),d1=new Float32Array(H);for(let k=0;k<L;k++)d2[k]=o[k]-(k==y?1:0);
+  for(let j=0;j<H;j++){let g=0;for(let k=0;k<L;k++)g+=d2[k]*W2[j*L+k];d1[j]=g*(1-h[j]*h[j])}
+  for(let j=0;j<H;j++)for(let k=0;k<L;k++)W2[j*L+k]-=lr*d2[k]*h[j];for(let k=0;k<L;k++)B2[k]-=lr*d2[k];
+  for(let i=0;i<IN;i++)if(x[i])for(let j=0;j<H;j++)W1[i*H+j]-=lr*d1[j]*x[i];for(let j=0;j<H;j++)B1[j]-=lr*d1[j]}
+function nnPredict(s){if(!NNinfo.ok||!W1)return null;const o=fwd(feat(s)).o;let b=0;o.forEach((v,k)=>{if(v>o[b])b=k});return{l:LAB[b],p:o[b]}}
+const trainSet=()=>[...RC('conversation_example').filter(f=>f.user&&LAB.includes((f.intent||'').toLowerCase())).map(f=>({t:f.user,l:f.intent.toLowerCase()})),...XD.filter(e=>LAB.includes(e.l))];
+async function train(){const ex=trainSet();if(ex.length<30){NNinfo={n:ex.length,acc:0,ok:0};return NNinfo}
+  initNN();const sh=[...ex].sort(()=>Math.random()-.5),cut=Math.floor(sh.length*.8),pre=a=>a.map(e=>[feat(e.t),LAB.indexOf(e.l)]),A=pre(sh.slice(0,cut)),T=pre(sh.slice(cut)),B=T.length?T:A;
+  const go=async(D,n)=>{for(let ep=0;ep<n;ep++){D.sort(()=>Math.random()-.5).forEach(([x,y])=>step(x,y,.25));if(ep%10==9)await new Promise(r=>setTimeout(r))}};
+  await go(A,120);const acc=B.filter(([x,y])=>{const o=fwd(x).o;return o.indexOf(Math.max(...o))==y}).length/B.length;await go([...A,...T],30);
+  NNinfo={n:ex.length,acc,ok:acc>=.6&&T.length>=6?1:0};put('model',{id:'intent',w1:[...W1],b1:[...B1],w2:[...W2],b2:[...B2],info:NNinfo});return NNinfo}
+/* Feedback: thumbs change the trust stored on the exact links / memory behind an answer; links under 20% are ignored by reasoning */
+function feedback(ref,up){let n=0;const cl=v=>Math.max(0,Math.min(1,v));(ref.ed||[]).forEach(id=>{const g=G.find(x=>x.id==id);if(g){g.conf=cl(g.conf+(up?.05:-.15));g[up?'up':'dn']=(g[up?'up':'dn']||0)+1;put('graph',g);n++}});
+  if(ref.mem){const m=mem[ref.ty].find(x=>x.id==ref.mem);if(m){m.conf=cl(m.conf+(up?.05:-.15));m.imp=Math.max(.05,Math.min(1,m.imp+(up?.1:-.2)));put(ref.ty,m);n++}}dirty=1;return n}
+/* Typed brain input: full records go through the importer (source: you); plain lines become links or facts */
+async function addText(text,prog){if(/\[[A-Z_]+\]/.test(text))return importText(text,prog,'user');
+  const sum={links:0,facts:0,dup:0,replaced:0,bad:0};
+  text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#')).forEach(l=>{const qa=l.split(/\s*=>\s*/);
+    if(qa.length==2&&qa[0]&&qa[1]){const x=remember('semantic',qa[0]+' '+qa[1],{src:'user',q:qa[0],a:qa[1],idx:l,conf:.9});x.dup?sum.dup++:sum.facts++;return}
+    const p=parseT(l);if(p){const x=link(p.a,p.r,p.b,{src:'user',conf:.9});if(!x)return sum.bad++;x.dup?sum.dup++:(sum.links++,x.replaced&&sum.replaced++);return}
+    const x=remember('semantic',l,{src:'user',conf:.8,fuzzy:1});x?(x.dup?sum.dup++:sum.facts++):sum.bad++});
+  flush();dirty=1;return sum}
+const fmt=s=>s.via?`${s.cancelled?'Cancelled':'Done'} (${s.via}). ${s.ok} imported (${Object.entries(s.by).map(([k,v])=>k.toLowerCase()+' '+v).join(', ')||'none'}), ${s.dup} duplicates skipped, ${s.bad} malformed, ${s.conflict} conflicts with things you taught (yours kept).`+(s.parked?` ${s.parked} reasoning-rule record(s) are stored but not used yet.`:''):`Added ${s.links} link(s) and ${s.facts} fact(s)${s.replaced?`, ${s.replaced} replaced an older conflicting link (kept in history)`:''}. ${s.dup} already known, ${s.bad} skipped.`;
+const status=()=>`Intent net: ${NNinfo.ok?'active':'not active'} · ${NNinfo.n} training examples · held-out accuracy ${Math.round(NNinfo.acc*100)}% · ${XD.length} of your chat lines saved as rule-labelled examples`;
+async function init(){await open();for(const s of ST){const a=await gall(s);if(s=='graph')G.push(...a);else a.forEach(m=>{mem[s].push(m);KS.add(s+'|'+nk(m.text))})}for(const m of await gall('model')){if(m.id=='intentdata')XD=m.d||[];if(m.id=='intent'&&m.w1)try{initNN();W1.set(m.w1);B1.set(m.b1);W2.set(m.w2);B2.set(m.b2);NNinfo=m.info}catch{NNinfo={n:0,acc:0,ok:0}}}dirty=1}
+return{init,answer,importText,train,feedback,addText,fmt,status,remember,fix,drop,link,prove,search,intent,mem,G,get trace(){return TR},cancel:()=>{cancel=1;if(W){W.terminate();W=null;WR&&WR()}},wsrc:WSRC,flush}})();
+</script>
+<script>
+/* Sprout 2.0 Part 1 wiring: structured reasoning first, v11 word-pattern generator as fallback. */
+(()=>{
+const _gen=gen;
+gen=(q,T)=>{try{const r=S2.answer(q);if(r)return r}catch(e){console.warn('S2',e)}return _gen(q,T)};
+show=t=>{['chat','teach','brain'].forEach(x=>{$('#'+x).hidden=x!=t;$('#t-'+x).setAttribute('aria-selected',x==t)});if(t=='chat')inp.focus();if(t=='brain')ui()};
+$('#t-brain').onclick=()=>show('brain');
+const li=(txt,sub,fn)=>{const l=document.createElement('li'),s=document.createElement('span');s.textContent=txt;if(sub){const m=document.createElement('small');m.textContent=sub;s.append(m)}l.append(s);if(fn){const b=document.createElement('button');b.textContent='Remove';b.onclick=fn;l.append(b)}return l};
+function ui(){const m=S2.mem;$('#b1').textContent=Object.values(m).reduce((a,b)=>a+b.length,0);$('#b2').textContent=S2.G.length;$('#b3').textContent=new Set(S2.G.flatMap(g=>[g.a,g.b])).size;
+  const tr=$('#trace');tr.innerHTML='';(S2.trace.length?S2.trace:[['Waiting','Send Sprout a message and its stages show up here.']]).forEach(([a,b])=>tr.append(li(a,b)));
+  const ty=$('#bt').value,ul=$('#bl');ul.innerHTML='';const items=ty=='graph'?S2.G:m[ty];
+  items.slice(-40).reverse().forEach(x=>ul.append(li(ty=='graph'?`${x.a} ${x.r} ${x.b}`:x.text.slice(0,200),`${x.src} · seen ×${x.n}`+(x.hist&&x.hist.length?' · corrected before':''),()=>{S2.drop(ty,x.id);ui()})));
+  if(!items.length)ul.append(li('Nothing here yet.'))}
+$('#bt').onchange=ui;
+$('#sw').checked=S(localStorage,'sprout.swear')==='1';$('#sw').onchange=e=>S(localStorage,'sprout.swear',e.target.checked?'1':'0');
+$('#bx').onclick=()=>S2.cancel();
+$('#bf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const bp=$('#bp'),bs=$('#bs');bp.hidden=false;$('#bx').disabled=false;bs.textContent='Reading file…';
+  try{const sum=await S2.importText(await f.text(),(p,s)=>{bp.value=p;bs.textContent=`${Math.round(p*100)}% · ${s.ok} imported · ${s.dup} duplicates · ${s.bad} malformed`});
+    bs.textContent=S2.fmt(sum)+' Training intent net…';await S2.train();bs.textContent=S2.fmt(sum);$('#bns').textContent=S2.status()}
+  catch(err){bs.textContent='Import failed: '+(err&&err.message||err)}
+  bp.hidden=true;$('#bx').disabled=true;ui()};
+$('#ba').onclick=async()=>{const v=$('#bi').value,o=$('#bm');if(!v.trim())return;o.textContent='Adding…';try{o.textContent=S2.fmt(await S2.addText(v));$('#bi').value='';ui()}catch(e){o.textContent='Could not add that: '+(e&&e.message||e)}};
+$('#bn').onclick=async()=>{$('#bns').textContent='Training…';await S2.train();$('#bns').textContent=S2.status()};
+const _v=vote;vote=(up,fb,row,btn)=>{if(!fb.s2)return _v(up,fb,row,btn);if(row.dataset.v)return;row.dataset.v=up?'1':'0';btn.setAttribute('aria-pressed','true');[...row.children].forEach(x=>x.disabled=true);const n=S2.feedback(fb.s2,up),h=document.createElement('span');h.className='hint';h.textContent=up?'Thanks, I trust that a bit more now.':'Noted, I trust that less now.';row.append(h)};
+S2.init().then(()=>{ui();$('#bns').textContent=S2.status()});
+})();
 </script>
 </body>
 </html>
