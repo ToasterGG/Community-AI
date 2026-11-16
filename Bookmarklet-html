@@ -191,6 +191,8 @@ html[data-anim=off] *,html[data-anim=off] *::before{animation:none!important;tra
     <label class="set"><span>Energy (random tangents)</span><input type="range" min="0" max="100" step="5" value="50" data-pref="energy"></label>
     <label class="set"><span>Swearing</span><select data-pref="swearlvl"><option value="0">Off</option><option value="1">Mild</option><option value="2">Spicy</option></select></label>
     <label class="set"><span>Answer detail</span><select data-pref="detail"><option value="brief">Brief</option><option value="normal" selected>Normal</option><option value="detailed">Detailed</option></select></label>
+    <label class="set"><span>Neural freeform replies (experimental)</span><input type="checkbox" data-pref="lm.free" checked></label>
+    <label class="set"><span>Language model size (retrain after changing)</span><select data-pref="lm.size"><option value="small">Small</option><option value="medium">Medium (slower)</option><option value="large">Large (minutes)</option></select></label>
     <label class="set"><span>Neural reply picker</span><input type="checkbox" data-pref="lm.use" checked></label>
     <label class="set"><span>Candidates to compare</span><input type="range" min="1" max="10" step="1" value="6" data-pref="lmk"></label>
     <p class="hint">Serious topics always switch the jokes and swearing off.</p></section>
@@ -205,9 +207,15 @@ html[data-anim=off] *,html[data-anim=off] *::before{animation:none!important;tra
     <progress id="bp" value="0" max="1" hidden></progress><p id="bs" class="hint" aria-live="polite"></p></section>
   <section><h3>Type brain info</h3><p class="hint">One fact per line: <b>Penguins are birds</b>, <b>Birds can fly</b>, or <b>question => answer</b>. Or paste full records like [FACT] ... [/FACT]. Saved as taught by you.</p>
     <textarea id="bi" rows="5" style="width:100%" placeholder="Dolphins are mammals&#10;What is a sprout? => A young plant"></textarea><div class="row"><button id="ba" class="pri">Add to brain</button></div><p id="bm" class="hint" aria-live="polite"></p></section>
+  <section><h3>Community brain</h3><p class="hint">Share what you taught Sprout so everyone's Sprout gets it, using the GitHub token you saved in the Teach tab. It goes in <b>brain.json</b> next to model.json in ToasterGG/Community-AI. Only links and facts you typed or taught are shared. Personal memories, chat history and Wikipedia text never are, and anything that looks like an email, phone number or link is skipped. Anything already in the community brain is never overwritten.</p>
+    <label class="hint"><input type="checkbox" id="cbx"> Also share things I picked up from chat</label><br><label class="hint"><input type="checkbox" data-pref="cb.auto" checked> Load the community brain when Sprout starts</label>
+    <div class="row"><button id="cs" class="pri">Share my brain with everyone</button><button id="cg">Get the community brain</button><button id="cr">Remove community items</button></div><p id="cm" class="hint" aria-live="polite"></p></section>
   <section><h3>Intent network</h3><p class="hint">A small neural net trained from scratch in this browser on conversation examples from the brain file plus your chat lines (labelled by my rules). It only overrides the rules for casual messages and slang.</p><div class="row"><button id="bn">Train now</button></div><p id="bns" class="hint"></p></section>
   <section><h3>Learn from Wikipedia <small>beta</small></h3><p class="hint">Type a topic. Sprout fetches the intro from Wikipedia (public API, one lookup per press), shows the sentences, and learns the ones you keep, for answers and for word patterns. It trusts them less than the brain file, keeps them on this device only, and never includes them in community sharing. Text is from Wikipedia (CC BY-SA); each fact keeps its page link.</p>
     <div class="row"><input id="wq" placeholder="e.g. penguin, black holes, jazz" style="flex:1" autocomplete="off"><button id="wb" class="pri">Fetch</button></div><ul id="wl"></ul><div class="row"><button id="wk" hidden>Learn selected</button></div><p id="wm" class="hint" aria-live="polite"></p></section>
+  <section><h3>Learn many pages <small>beta</small></h3><p class="hint">Feed Sprout a whole pack of Wikipedia intros in one go (about two requests per page, spaced out), then it trains the language model on the lot. More text is the main way to make him talk better.</p>
+    <div class="row"><select id="pk" aria-label="Topic pack"><option value="animals">Animals</option><option value="space">Space</option><option value="science">Science</option><option value="tech">Technology</option><option value="world">World</option><option value="everyday">Everyday life</option></select><button id="pg" class="pri">Learn pack</button><button id="ps" hidden>Stop</button></div>
+    <textarea id="pc" rows="3" style="width:100%" placeholder="Or your own topics, one per line (max 80). If this box has text it is used instead of the pack."></textarea><progress id="pp" value="0" max="1" hidden></progress><p id="pm" class="hint" aria-live="polite"></p></section>
   <section><h3>Neural language model</h3><p class="hint">A small neural network trained from scratch on Sprout's own text (brain file, facts, Wikipedia pages you taught). It learns word embeddings and which word tends to come next, using backpropagation in a background worker. Jobs: it picks the most fluent of several candidate replies (Settings), and you can watch it continue a phrase below. With this little text it is more of a fluency judge than a writer.</p>
     <div class="row"><button id="ln">Train</button></div><progress id="lp" value="0" max="1" hidden></progress><p id="lns" class="hint" aria-live="polite"></p>
     <div class="row"><input id="li" placeholder="Start a sentence, e.g. penguins are" style="flex:1" autocomplete="off"><button id="lt">Continue</button></div><p id="lo" style="margin:6px 0"></p></section>
@@ -245,7 +253,7 @@ html[data-anim=off] *,html[data-anim=off] *::before{animation:none!important;tra
 
   <section>
     <h3>Share with everyone</h3>
-    <p class="hint">Sprout only reads and writes <b>model.json</b> on the <b>main</b> branch of ToasterGG/Community-AI, and nothing else.</p>
+    <p class="hint">Sprout reads and writes <b>model.json</b> on the <b>main</b> branch of ToasterGG/Community-AI, plus <b>brain.json</b> only when you press the Community brain buttons in the Brain tab, and nothing else.</p>
     <div class="row">
       <input id="tok" type="password" placeholder="GitHub token with Contents: read and write" autocomplete="off">
       <label class="hint"><input type="checkbox" id="rem"> Remember on this device</label>
@@ -514,7 +522,7 @@ function drop(ty,id){let k,wb;if(ty=='graph'){const i=G.findIndex(g=>g.id==id);i
 /* Knowledge graph: triples with source + confidence; a contradiction replaces the old triple but keeps it in history */
 function link(a,r,b,o={}){const bw=nk(b).replace(/^(a|an|the) /,'');a=ca(a);b=ca(b);if(!a||!b)return null;const d=G.find(x=>x.a==a&&x.r==r&&x.b==b);if(d){d.n++;if(!d.bw)d.bw=bw;put('graph',d);return{dup:1}}
   const opp={can:'cannot',cannot:'can'}[r],c=opp&&G.find(x=>x.a==a&&x.r==opp&&x.b==b);
-  if(c&&c.src=='user'&&o.src=='brain')return{dup:1,conflict:1};
+  if(c&&((c.src=='user'&&o.src=='brain')||o.src=='community'))return{dup:1,conflict:1};
   const x={id:nid(),a,r,b,bw,src:o.src||'user',conf:o.conf??.9,n:1,t:Date.now(),hist:[]};
   if(c){x.hist.push({was:`${c.a} ${c.r} ${c.b}`,src:c.src,t:c.t});G.splice(G.indexOf(c),1);put('graph',{id:c.id,__del:1})}
   G.push(x);put('graph',x);dirty=1;return{dup:0,replaced:c?`${c.a} ${c.r} ${c.b}`:null}}
@@ -649,7 +657,7 @@ async function importText(text,prog,src){cancel=0;SRC=src||'brain';text=text.rep
 const SER=/\b(died|dies|death|funeral|cancer|hospital|abused?|depressed|panic|grief|passed away)\b/i,HARM=/\b(kill myself|suicid\w*|end my life|self.?harm|hurt myself|want to die)\b/i,HEDGE=/\b(i think|maybe|probably|might|i guess|i heard|not sure|idk|supposedly|apparently|lol|lmao)\b/i;
 const F=m=>m.f||Object.fromEntries(m.text.split(' | ').map(x=>{const i=x.indexOf(': ');return[x.slice(0,i),x.slice(i+2)]})),RC=k=>mem.procedural.filter(m=>m.kind==k).map(F);
 const PR=w=>{const r=RC('personality_rule').find(f=>(f.situation||'').toLowerCase().includes(w));return r&&r.example};
-const sl=s=>s=='brain'?'brain file':s=='chat'?'learned from chat':'taught by you';
+const sl=s=>s=='brain'?'brain file':s=='chat'?'learned from chat':s=='community'?'community brain':'taught by you';
 const LP=s=>RC('language_pattern').filter(f=>/^informal for /i.test(f.meaning||'')&&/^\w+$/.test(f.pattern||'')).reduce((a,f)=>a.replace(new RegExp('\\b'+f.pattern+'\\b','gi'),f.meaning.replace(/^informal for /i,'')),s);
 function convs(kind,s){const q=new Set(tok(s)),L=RC('conversation_example').filter(f=>(f.intent||'').toLowerCase()==kind&&f.user&&f.sprout);if(!L.length)return null;
   const r=L.map(f=>[jac(q,new Set(tok(f.user)))+Math.random()*.01,f]).sort((a,b)=>b[0]-a[0])[0];return r[0]<.25&&!['greeting','social','joke'].includes(kind)?null:r[1]}
@@ -694,7 +702,7 @@ async function embed(){const seqs=[...Object.values(mem).flat().map(m=>m.tk),...
   for(let ep=0;ep<15;ep++){const lr=.08*(1-ep/16);Q.forEach(q=>{for(let i=0;i<q.length;i++){if(q[i]===undefined)continue;for(let j=Math.max(0,i-3);j<Math.min(q.length,i+4);j++){if(j==i||q[j]===undefined)continue;upd(q[i],q[j],1,lr);for(let n=0;n<4;n++)upd(q[i],bag[Math.random()*bag.length|0],0,lr)}}});await new Promise(r=>setTimeout(r))}
   EMB={V,ix,D,I};put('model',{id:'emb',V,I:[...I]});return V.length}
 /* Sync support: what to upload (brain-file items stay local), safe merging of remote data, deletions remembered until the next push */
-const snap=ty=>(ty=='graph'?G:mem[ty]).filter(x=>x.src!=='brain');
+const snap=ty=>(ty=='graph'?G:mem[ty]).filter(x=>x.src!=='brain'&&x.src!=='community');
 const okItem=(ty,m)=>ty=='graph'?m&&typeof m.a=='string'&&typeof m.r=='string'&&typeof m.b=='string':m&&typeof m.text=='string'&&m.text.length<4000&&Array.isArray(m.tk);
 function mergeIn(ty,arr){let add=0,upd=0,con=0;const dead=new Set(TB);
   for(const x of Array.isArray(arr)?arr:[]){if(!okItem(ty,x))continue;
@@ -721,12 +729,12 @@ async function wiki(topic){topic=String(topic).trim().slice(0,100);if(!topic)thr
   if(!sentences.length)throw new Error('That page had no usable text (it may be a disambiguation page).');
   return{title,url:(r[3]&&r[3][0])||'https://en.wikipedia.org/wiki/'+encodeURIComponent(title.replace(/ /g,'_')),sentences}}
 function syncWeb(){globalThis.WEB=mem.semantic.filter(m=>m.src=='web').map(m=>({q:m.q,t:m.a||m.text,c:1}));if(typeof build=='function'){try{build()}catch{}}}
-function learnWeb(w,picked){let n=0,l=0;const SP=/\s+(?:of|in|from|that|which|who|found|native|used|with|for|on|at)\s+/i,last=p=>{const a=p.split(SP)[0].trim().split(' ');return a[a.length-1]};
+function learnWeb(w,picked,quiet){let n=0,l=0;const SP=/\s+(?:of|in|from|that|which|who|found|native|used|with|for|on|at)\s+/i,last=p=>{const a=p.split(SP)[0].trim().split(' ');return a[a.length-1]};
   picked.forEach((s,i)=>{const x=remember('semantic',s,{src:'web',conf:.6,imp:.4,u:w.url,q:i==0?`What is ${w.title}?`:undefined,a:s,idx:w.title+' '+s});if(x&&!x.dup)n++;
     if(i==0){const m=s.match(new RegExp('^'+w.title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'s?\\s+(?:is|are|was|were)\\s+(?:an?|the)\\s+([^,.;]+)','i'));
       if(m){let h=last(m[1]);if(/^(group|type|kind|species|family|genus|class|member|form|series|set|number|collection|term|name|breed|variety)$/i.test(h)){const o=m[1].match(/\bof\s+(.+)$/i);if(o)h=last(o[1])}
         if(/^[a-z-]{3,}$/i.test(h)){const k=link(w.title,'isa',h,{src:'web',conf:.5});if(k&&!k.dup)l++}}}});
-  syncWeb();return{n,l}}
+  if(!quiet)syncWeb();return{n,l}}
 const props=e=>{const m=new Map();[...up(e)].sort((p,q)=>p[1].d-q[1].d).forEach(([x])=>G.filter(g=>g.a==x&&['can','cannot','has'].includes(g.r)).forEach(g=>{const k=g.r=='has'?'has '+g.b:g.b;if(!m.has(k))m.set(k,(g.r=='cannot'?"can't ":g.r+' ')+(g.bw||g.b))}));return[...m.values()]};
 function compare(x,y){const a=ca(x),b=ca(y);if(!G.some(g=>g.a==a||g.a==b))return null;const A=up(a),B=up(b),both=[...A.keys()].filter(k=>k!=a&&k!=b&&B.has(k)),pa=props(a),pb=props(b),da=pa.filter(z=>!pb.includes(z)),db=pb.filter(z=>!pa.includes(z)),j=l=>l.slice(0,3).join(' and '),out=[];
   if(both.length)out.push(`Both are kinds of ${both[0]}.`);
@@ -762,8 +770,9 @@ function* lmTrain(seqs,o){const cnt={};seqs.forEach(s=>s.forEach(w=>cnt[w]=(cnt[
  let ok=0,tot=0;te.forEach(s=>{if(s.length<8)return;const sh=s.slice(3,-1).sort(()=>Math.random()-.5);tot++;if(lmNLL(m,s)<lmNLL(m,[1,1,1,...sh,2]))ok++});
  m.info={words:ex.length,V,base,after:ppl(),disc:tot?ok/tot:0,tested:tot};delete m.ix;return m}
 function lmSample(m,words,n,temp){const x=new Float32Array(3*m.E),h=new Float32Array(m.H),p=new Float32Array(m.V),ids=lmIds(m,words).slice(0,-1),out=[];
- for(let k=0;k<n;k++){const L=ids.length;lmFwd(m,ids[L-3],ids[L-2],ids[L-1],h,x,p);const c=[];for(let v=2;v<m.V;v++)c.push(v);c.sort((a,b)=>p[b]-p[a]);
-  const top=c.slice(0,10).map(v=>[v,Math.pow(p[v],1/Math.max(.2,temp))]),z=top.reduce((a,b)=>a+b[1],0);let r=Math.random()*z,pk=top[0][0];for(const [v,w] of top){r-=w;if(r<=0){pk=v;break}}
+ for(let k=0;k<n;k++){const L=ids.length,rec=new Set(ids.slice(-6));lmFwd(m,ids[L-3],ids[L-2],ids[L-1],h,x,p);const c=[];for(let v=out.length<5?3:2;v<m.V;v++)if(!rec.has(v))c.push(v);c.sort((a,b)=>p[b]-p[a]);
+  const top=[];let acc=0;for(const v of c){top.push([v,Math.pow(p[v],1/Math.max(.2,temp))]);acc+=p[v];if(acc>.9||top.length>=12)break}
+  const z=top.reduce((a,b)=>a+b[1],0);let r=Math.random()*z,pk=top[0][0];for(const [v,w] of top){r-=w;if(r<=0){pk=v;break}}
   if(pk==2)break;ids.push(pk);out.push(m.vocab[pk])}return out.join(' ').replace(/ ([.,!?])/g,'$1')}`;
 const LMX=new Function(LMCODE+';return{lmTrain,lmNLL,lmIds,lmSample}')();
 const LMWORKER=LMCODE+'\nonmessage=e=>{const it=lmTrain(e.data.seqs,e.data.opt);let r;while(!(r=it.next()).done)postMessage({p:r.value});const m=r.value;postMessage({m},m?[m.emb.buffer,m.w1.buffer,m.b1.buffer,m.w2.buffer,m.b2.buffer]:[])}';
@@ -772,12 +781,32 @@ function lmCorpus(){const T=[],add=x=>String(x||'').split(/(?<=[.!?])\s+/).forEa
   (typeof comm!='undefined'?comm:[]).concat(typeof mine!='undefined'?mine:[]).forEach(f=>add(f.t));
   ['semantic','procedural'].forEach(ty=>mem[ty].forEach(m=>{if(m.kind=='conversation_example'||m.kind=='personality_rule'){const f=F(m);add(f.sprout||f.example)}else if(!m.kind)add(m.a||m.text)}));
   (globalThis.WEB||[]).forEach(f=>add(f.t));const seen=new Set();return T.filter(w=>{const k=w.join(' ');return seen.has(k)?false:seen.add(k)})}
-async function trainLM(prog){const seqs=lmCorpus(),opt={V:1600,min:2,E:16,H:48,lr:.12,epochs:6};if(seqs.length<100)throw new Error('Not enough text yet. Import the brain file or learn from Wikipedia first.');let m=null;
+async function trainLM(prog){const seqs=lmCorpus(),SZ={small:[1600,16,48,6],medium:[3000,32,96,8],large:[5000,48,160,10]}[pref('lm.size','small')]||[1600,16,48,6],opt={V:SZ[0],E:SZ[1],H:SZ[2],epochs:SZ[3],min:2,lr:.12};if(seqs.length<100)throw new Error('Not enough text yet. Import the brain file or learn from Wikipedia first.');let m=null;
   if(typeof Worker!='undefined'){try{m=await new Promise((res,rej)=>{const w=new Worker(URL.createObjectURL(new Blob([LMWORKER],{type:'text/javascript'})));w.onerror=()=>{w.terminate();rej(0)};w.onmessage=e=>{if(e.data.p!==undefined)prog&&prog(e.data.p);else{w.terminate();res(e.data.m)}};w.postMessage({seqs,opt})})}catch{m=null}}
   if(!m){const it=LMX.lmTrain(seqs,opt);let r;while(!(r=it.next()).done){prog&&prog(r.value);await new Promise(z=>setTimeout(z))}m=r.value}
   if(!m)throw new Error('Not enough text to train on.');put('model',{id:'lm',m});m.ix=new Map(m.vocab.map((w,i)=>[w,i]));LM=m;return m.info}
+const judge=(q,t)=>{const w=lmTok(t),cw=lmTok(q).filter(x=>tok(x).length),hit=cw.length?cw.filter(x=>w.includes(x)).length/cw.length:0;return lmFluency(t)-1.2*hit+(w.length<4?3:0)};
+function lmCandidates(q,n,temp){if(!LM)return[];const cw=lmTok(q).filter(x=>tok(x).length&&/^[a-z]/.test(x)),out=[];for(let i=0;i<n;i++){const seed=cw.length?[cw[Math.random()*cw.length|0]]:[],w=(seed.join(' ')+' '+LMX.lmSample(LM,seed,26,temp||.8)).trim();if(w.split(' ').length<5)continue;out.push({text:cap(w)+(/[.!?]$/.test(w)?'':'.'),guessed:true})}return out}
 const lmReady=()=>!!LM,lmFluency=t=>{const w=lmTok(t);return LM&&w.length>1?LMX.lmNLL(LM,LMX.lmIds(LM,w)):99},lmSample=(seed,temp)=>LM?LMX.lmSample(LM,lmTok(seed).slice(-3),24,temp||.8):'';
 const lmStatus=()=>LM?`Neural language model: ${LM.info.V} words · ${LM.info.words} training windows · perplexity ${LM.info.after.toFixed(1)} on unseen sentences (random guessing would be ${LM.info.V}) · prefers the real sentence over a shuffled one ${Math.round(LM.info.disc*100)}% of the time (${LM.info.tested} test sentences)`:'Neural language model: not trained yet';
+const PACKS={animals:['Penguin','Dog','Cat','Elephant','Dolphin','Eagle','Shark','Honey bee','Octopus','Wolf','Giraffe','Frog'],space:['Sun','Moon','Mars','Jupiter','Black hole','Milky Way','Comet','Solar System','Saturn','Star','Galaxy','Asteroid'],
+ science:['Gravity','Atom','Photosynthesis','DNA','Electricity','Magnet','Volcano','Earthquake','Rainbow','Evolution','Energy','Water'],tech:['Computer','Internet','Smartphone','Robot','Artificial intelligence','Video game','Programming language','Battery','Satellite','Electric car','Camera','Keyboard'],
+ world:['Paris','Japan','Egypt','Amazon River','Mount Everest','Sahara','Pacific Ocean','Roman Empire','Pyramid','Moon landing','Olympic Games','Great Wall of China'],everyday:['Pizza','Coffee','Music','Football','Sleep','Chocolate','Bicycle','Film','Friendship','Weather','Money','Birthday']};
+let PSTOP=0;
+async function learnPack(titles,prog){PSTOP=0;const r={pages:0,sentences:0,links:0,failed:0};titles=[...new Set(titles.map(x=>String(x).trim()).filter(Boolean))].slice(0,80);
+  for(let i=0;i<titles.length&&!PSTOP;i++){prog&&prog(i/titles.length,titles[i]);try{const w=await wiki(titles[i]),x=learnWeb(w,w.sentences.slice(0,10),1);r.pages++;r.sentences+=x.n;r.links+=x.l}catch{r.failed++}await new Promise(z=>setTimeout(z,350))}
+  syncWeb();r.stopped=PSTOP;return r}
+/* Community brain: only things you typed or taught may be shared; imports are validated and can never override what you or the brain file already hold */
+const SHK=(()=>{try{return new Set(JSON.parse(localStorage.getItem('sprout.shared'))||[])}catch{return new Set()}})(),PII=/[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s().-]{8,}\d|https?:\/\/\S+/i;
+function shareable(chat){const okS=x=>x=='user'||(chat&&x=='chat'),out={links:[],facts:[],skipped:0};
+  G.forEach(g=>{if(!okS(g.src)||g.conf<.5)return;const k=`L|${g.a}|${g.r}|${g.b}`;if(SHK.has(k))return;if(PII.test(g.a+' '+g.b)){out.skipped++;return}out.links.push({k,a:g.a,r:g.r,b:g.b,bw:g.bw,c:+g.conf.toFixed(2)})});
+  ['semantic','procedural'].forEach(ty=>mem[ty].forEach(m=>{if(m.kind||!okS(m.src)||m.conf<.5)return;const k=`F|${ty}|${nk(m.text)}`;if(SHK.has(k))return;if(PII.test(m.text)||m.text.length>400){out.skipped++;return}out.facts.push({k,ty,t:m.text,q:m.q,a:m.a,c:+m.conf.toFixed(2)})}));return out}
+function markShared(keys){keys.forEach(k=>SHK.add(k));try{localStorage.setItem('sprout.shared',JSON.stringify([...SHK].slice(-8000)))}catch{}}
+function applyCommunity(d){const r={links:0,facts:0,conflicts:0,skipped:0};if(!d||!Array.isArray(d.links)||!Array.isArray(d.facts))throw new Error('That file is not a Sprout brain.');const ok=(x,n)=>typeof x=='string'&&x.length>0&&x.length<=n;
+  d.links.slice(0,5000).forEach(l=>{if(!l||!ok(l.a,60)||!ok(l.b,60)||!/^[\w' -]{1,30}$/.test(l.r||'')){r.skipped++;return}const x=link(l.a,l.r,ok(l.bw,60)?l.bw:l.b,{src:'community',conf:Math.min(.8,.6+.05*((+l.s||1)-1))});if(!x)r.skipped++;else if(x.conflict)r.conflicts++;else if(!x.dup)r.links++});
+  d.facts.slice(0,5000).forEach(f=>{if(!f||!ok(f.t,400)||!['semantic','procedural'].includes(f.ty)){r.skipped++;return}const x=remember(f.ty,f.t,{src:'community',q:ok(f.q,200)?f.q:undefined,a:ok(f.a,400)?f.a:undefined,idx:f.t,conf:Math.min(.8,.6+.05*((+f.s||1)-1))});if(x&&!x.dup)r.facts++});
+  dirty=1;return r}
+function dropSource(src){let n=0;[...G].filter(g=>g.src==src).forEach(g=>{drop('graph',g.id);n++});Object.keys(mem).forEach(ty=>[...mem[ty]].filter(m=>m.src==src).forEach(m=>{drop(ty,m.id);n++}));return n}
 /* Slash commands */
 function cmd(s){const [c,...r]=s.slice(1).split(' '),a=r.join(' ').trim(),o=text=>({text,plain:text,guessed:false,nofb:1});
   switch(c.toLowerCase()){
@@ -794,13 +823,13 @@ function importAll(js){const d=JSON.parse(js);if(!d||d.v!==2||!d.mem)throw new E
   (d.G||[]).forEach(g=>{if(g&&g.a&&g.r&&g.b&&!G.some(x=>x.a==g.a&&x.r==g.r&&x.b==g.b)){G.push(g);put('graph',g);n++}});dirty=1;return n}
 async function init(){await open();for(const s of ST){const a=await gall(s);if(s=='graph')G.push(...a);else a.forEach(m=>{mem[s].push(m);KS.add(s+'|'+nk(m.text))})}for(const m of await gall('model')){if(m.id=='intentdata')XD=m.d||[];if(m.id=='lm'&&m.m&&m.m.vocab){LM=m.m;LM.ix=new Map(LM.vocab.map((w,i)=>[w,i]))}if(m.id=='emb'&&m.V)EMB={V:m.V,ix:new Map(m.V.map((w,i)=>[w,i])),D:24,I:Float32Array.from(m.I)};if(m.id=='intent'&&m.w1)try{initNN();W1.set(m.w1);B1.set(m.b1);W2.set(m.w2);B2.set(m.b2);NNinfo=m.info}catch{NNinfo={n:0,acc:0,ok:0}}}dirty=1;syncWeb()}
 const choose=(r,g)=>!r?'g':!r.soft?'r':(!g||g.guessed||g.cov<.6)&&(!r.partial||!g)?'r':'g';
-return{trainLM,lmReady,lmFluency,lmSample,lmStatus,lmCorpus,lmWorker:LMWORKER,wiki,learnWeb,syncWeb,choose,init,answer,importText,embed,exportAll,importAll,snap,mergeIn,tomb:()=>TB,clearTomb,entity,ents,train,feedback,addText,fmt,status,remember,fix,drop,link,prove,search,intent,mem,G,get trace(){return TR},cancel:()=>{cancel=1;if(W){W.terminate();W=null;WR&&WR()}},wsrc:WSRC,flush}})();
+return{shareable,markShared,applyCommunity,dropSource,nk,learnPack,stopPack:()=>{PSTOP=1},PACKS,lmCandidates,judge,trainLM,lmReady,lmFluency,lmSample,lmStatus,lmCorpus,lmWorker:LMWORKER,wiki,learnWeb,syncWeb,choose,init,answer,importText,embed,exportAll,importAll,snap,mergeIn,tomb:()=>TB,clearTomb,entity,ents,train,feedback,addText,fmt,status,remember,fix,drop,link,prove,search,intent,mem,G,get trace(){return TR},cancel:()=>{cancel=1;if(W){W.terminate();W=null;WR&&WR()}},wsrc:WSRC,flush}})();
 </script>
 <script>
 /* Sprout 2.0 · GitHub personal storage (Part 4). Manual, merge-first sync. The token is only ever sent to api.github.com. */
 const GH=(()=>{
 const TY={'personal-memories':'personal','episodic-memories':'episodic','semantic-memories':'semantic','procedural-memories':'procedural','knowledge-graph':'graph'},ALL=['profile',...Object.keys(TY),'settings','metadata'];
-const PK=['ui.theme','ui.accent','ui.font','ui.width','ui.anim','ui.bg','ui.compact','ui.speed','sass','energy','swearlvl','detail','lmk','lm.use'];
+const PK=['ui.theme','ui.accent','ui.font','ui.width','ui.anim','ui.bg','ui.compact','ui.speed','sass','energy','swearlvl','detail','lmk','lm.use','lm.free','lm.size','cb.auto'];
 let tok='';const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch{}};
 const cfg=()=>{try{return JSON.parse(ls('sprout.gh.cfg'))||{}}catch{return{}}},setCfg=c=>ls('sprout.gh.cfg',JSON.stringify(c));
 /* Optional encrypted copy of the token: PBKDF2 (250k rounds) -> AES-GCM, stored in this browser only */
@@ -831,6 +860,25 @@ async function run(files,push){const r=await api('GET','');if(r.private===false)
     if(push){try{await wr(n,pl(n,ty,out.written),rm&&rm.sha)}catch(e){if(e.status!=409&&e.status!=422)throw e;rm=await rd(n);mg();await wr(n,pl(n,ty,out.written),rm&&rm.sha)}out.written.push(n)}}
   if(push&&files.includes('personal-memories'))S2.clearTomb();return out}
 return{ALL,cfg,setCfg,setToken,unlock,forget,clean,has:()=>!!tok,stored:()=>!!ls('sprout.gh.tok'),pull:f=>run(f,0),push:f=>run(f,1)}})();
+
+/* Community brain: brain.json sits next to model.json in the community repo and is written with the token saved in the Teach tab. */
+const CB=(()=>{const F2='brain.json',U=put=>`https://api.github.com/repos/${REPO}/contents/${F2}`+(put?'':`?ref=${BRANCH}`),H=t=>({Accept:'application/vnd.github+json',...(t?{Authorization:'Bearer '+t}:{})});
+const MSG={offline:"I couldn't reach GitHub. Check your connection.",token:'GitHub rejected the token. Save a fresh one in the Teach tab.',denied:'GitHub refused. The token needs write access to ToasterGG/Community-AI, or you hit a rate limit.',bad:'brain.json in the community repo is not Sprout data, so I did not touch it.',notoken:'Paste a GitHub token in the Teach tab and save it first.',full:'The community brain is full (20,000 entries).',busy:'Someone else saved at the same moment. Try again.'};
+async function get(t){let r;try{r=await fetch(U(),{headers:H(t)})}catch{throw 'offline'}
+  if(r.status==404)return{sha:undefined,data:{v:1,name:'Sprout brain',links:[],facts:[]}};if(r.status==401)throw 'token';if(!r.ok)throw 'denied';
+  const j=await jget(r);if(j.path!==F2||j.type!=='file')throw 'bad';const txt=j.content?b64d(j.content):await(await fetch(j.download_url)).text();if(!txt.trim())return{sha:j.sha,data:{v:1,name:'Sprout brain',links:[],facts:[]}};
+  let d;try{d=JSON.parse(txt)}catch{throw 'bad'}if(!d||!Array.isArray(d.links)||!Array.isArray(d.facts))throw 'bad';return{sha:j.sha,data:d}}
+async function share(chat){const t=token();if(!t)throw 'notoken';const mi=S2.shareable(chat);if(!mi.links.length&&!mi.facts.length)return{links:0,facts:0,supported:0,conflicts:0};
+  for(let i=0;i<3;i++){const {sha,data}=await get(t),L=new Map(data.links.map(x=>[`L|${x.a}|${x.r}|${x.b}`,x])),Fm=new Map(data.facts.map(x=>[`F|${x.ty}|${S2.nk(x.t)}`,x])),opp={can:'cannot',cannot:'can'};let nl=0,nf=0,sup=0,con=0;
+    for(const l of mi.links){const e=L.get(l.k);if(e){e.s=(e.s||1)+1;sup++;continue}if(opp[l.r]&&L.has(`L|${l.a}|${opp[l.r]}|${l.b}`)){con++;continue}L.set(l.k,{a:l.a,r:l.r,b:l.b,bw:l.bw,c:l.c,s:1});nl++}
+    for(const f of mi.facts){const e=Fm.get(f.k);if(e){e.s=(e.s||1)+1;sup++;continue}Fm.set(f.k,{ty:f.ty,t:f.t,q:f.q,a:f.a,c:f.c,s:1});nf++}
+    if(L.size+Fm.size>20000)throw 'full';
+    let p;try{p=await fetch(U(1),{method:'PUT',headers:{...H(t),'Content-Type':'application/json'},body:JSON.stringify({message:`Sprout brain: +${nl} links, +${nf} facts`,content:b64e(JSON.stringify({v:1,name:'Sprout brain',links:[...L.values()],facts:[...Fm.values()]})),sha,branch:BRANCH})})}catch{throw 'offline'}
+    if(p.ok){S2.markShared([...mi.links,...mi.facts].map(x=>x.k));return{links:nl,facts:nf,supported:sup,conflicts:con}}
+    if(p.status==401)throw 'token';if(p.status!=409&&p.status!=422)throw 'denied'}
+  throw 'busy'}
+async function pull(){const {data}=await get(token());return S2.applyCommunity(data)}
+return{share,pull,msg:e=>typeof e=='string'?(e=='html'?HTMLMSG:MSG[e]||e):(e&&e.message)||'Something went wrong.'}})();
 </script>
 <script type="text/plain" id="seed">
 # sprout_brain.txt (Part 2). Records sit between a tag line and its matching end-tag line. Lines starting with a hash are ignored.
@@ -3338,7 +3386,8 @@ gen=(q,T)=>{let r=null;try{r=S2.answer(q)}catch(e){console.warn('S2',e)}
   const g=pick(q,T);return S2.choose(r,g)=='r'?use(q,r,g):g};
 const pick=(q,T)=>{const k=+(P('lmk')||6);if(!S2.lmReady()||k<2||P('lm.use')==='0')return _gen(q,T);
   const H0=[...HIST],U0=new Set(USED),c=[];for(let i=0;i<k;i++){const g=_gen(q,T);if(g)c.push(g);HIST=[...H0];USED=new Set(U0)}
-  if(!c.length)return null;const sure=c.filter(g=>!g.guessed),pool=sure.length?sure:c,best=pool.map(g=>[S2.lmFluency(g.text),g]).sort((a,b)=>a[0]-b[0])[0][1];
+  const sure=c.filter(g=>!g.guessed);let pool=sure.length?sure:c;if(!sure.length&&P('lm.free')!=='0')pool=[...pool,...S2.lmCandidates(q,6,+$('#temp').value)];
+  if(!pool.length)return null;const best=pool.map(g=>[S2.judge(q,g.text),g]).sort((a,b)=>a[0]-b[0])[0][1];
   HIST=[...H0,{q,a:best.text}].slice(-6);return best};
 const use=(q,r,g)=>{if(S(localStorage,'sprout.why')!=='1'&&(r.conf??1)>=.7)r.note=null;if(S(localStorage,'sprout.why')==='1'&&S2.trace.length)r.note=(r.note?r.note+'\n':'')+'Thought: '+S2.trace.map(([a,c])=>a+' → '+c).join(' · ');
   try{const e={q,a:r.plain||r.text};HIST=g?[...HIST.slice(0,-1),e]:[...HIST,e].slice(-6)}catch{}return r};
@@ -3382,7 +3431,7 @@ const sync=async push=>{const f=files();if(!f.length)return gm('Pick at least on
 $('#gl').onclick=()=>sync(0);$('#gh').onclick=()=>sync(1);
 addEventListener('online',()=>{const q=localStorage.getItem('sprout.gh.q');if(q&&GH.has()){localStorage.removeItem('sprout.gh.q');GH.push(JSON.parse(q)).then(()=>gm('Queued push finished.')).catch(err)}});
 const li=(txt,sub,fn,ed)=>{const l=document.createElement('li'),s=document.createElement('span');s.textContent=txt;if(sub){const m=document.createElement('small');m.textContent=sub;s.append(m)}l.append(s);if(ed){const b=document.createElement('button');b.textContent='Edit';b.onclick=ed;l.append(b)}if(fn){const b=document.createElement('button');b.textContent='Remove';b.onclick=fn;l.append(b)}return l};
-function ui(){const m=S2.mem;$('#b1').textContent=Object.values(m).reduce((a,b)=>a+b.length,0);$('#b2').textContent=S2.G.length;$('#b3').textContent=new Set(S2.G.flatMap(g=>[g.a,g.b])).size;
+function ui(){loadPrefs();const m=S2.mem;$('#b1').textContent=Object.values(m).reduce((a,b)=>a+b.length,0);$('#b2').textContent=S2.G.length;$('#b3').textContent=new Set(S2.G.flatMap(g=>[g.a,g.b])).size;
   const tr=$('#trace');tr.innerHTML='';(S2.trace.length?S2.trace:[['Waiting','Send Sprout a message and its stages show up here.']]).forEach(([a,b])=>tr.append(li(a,b)));
   const ty=$('#bt').value,ul=$('#bl'),q=$('#bq').value.trim().toLowerCase();ul.innerHTML='';const items=q?(ty=='graph'?S2.G.filter(g=>`${g.a} ${g.r} ${g.b}`.includes(q)):S2.search(q,[ty],40).map(x=>x.d)):(ty=='graph'?S2.G:m[ty]);
   (q?items:items.slice(-40).reverse()).forEach(x=>ul.append(li(ty=='graph'?`${x.a} ${x.r} ${x.b}`:x.text.slice(0,200),`${x.src} · seen ×${x.n}`+(x.hist&&x.hist.length?' · corrected before':'')+(x.u?' · '+x.u:''),()=>{S2.drop(ty,x.id);ui()},ty=='graph'?null:()=>{const v=prompt('Edit this memory',x.text);if(v&&S2.fix(ty,x.id,v))ui()})));
@@ -3407,9 +3456,20 @@ $('#bf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)re
 $('#ba').onclick=async()=>{const v=$('#bi').value,o=$('#bm');if(!v.trim())return;o.textContent='Adding…';try{o.textContent=S2.fmt(await S2.addText(v));$('#bi').value='';ui()}catch(e){o.textContent='Could not add that: '+(e&&e.message||e)}};
 $('#bn').onclick=async()=>{$('#bns').textContent='Training…';await S2.train();await S2.embed();$('#bns').textContent=S2.status()};
 const _v=vote;vote=(up,fb,row,btn)=>{if(!fb.s2)return _v(up,fb,row,btn);if(row.dataset.v)return;row.dataset.v=up?'1':'0';btn.setAttribute('aria-pressed','true');[...row.children].forEach(x=>x.disabled=true);const n=S2.feedback(fb.s2,up),h=document.createElement('span');h.className='hint';h.textContent=up?'Thanks, I trust that a bit more now.':'Noted, I trust that less now.';row.append(h)};
+const cm=m=>{$('#cm').textContent=m};
+$('#cs').onclick=async()=>{const ch=$('#cbx').checked,pv=S2.shareable(ch);if(!pv.links.length&&!pv.facts.length)return cm(pv.skipped?`Nothing to share: ${pv.skipped} item(s) were skipped because they looked like contact details.`:'Nothing new to share yet. Teach Sprout something in the Brain tab first.');
+  if(!confirm(`Share ${pv.links.length} link(s) and ${pv.facts.length} fact(s) with everyone who uses Sprout?\n\nPersonal memories, chat history and Wikipedia text are never included.`+(pv.skipped?`\n${pv.skipped} item(s) skipped because they looked like contact details.`:'')))return;
+  cm('Sharing…');try{const r=await CB.share(ch);cm(`Shared ${r.links} new link(s) and ${r.facts} new fact(s). ${r.supported} you agreed with were already there and now count as extra support.`+(r.conflicts?` ${r.conflicts} clashed with existing community links and were left out.`:''))}catch(e){cm(CB.msg(e))}};
+$('#cg').onclick=async()=>{cm('Fetching…');try{const r=await CB.pull();cm(`Got ${r.links} new link(s) and ${r.facts} new fact(s) from the community brain.`+(r.conflicts?` ${r.conflicts} clashed with what you already have, so yours stayed.`:'')+(r.skipped?` ${r.skipped} invalid entries ignored.`:''));ui()}catch(e){cm(CB.msg(e))}};
+$('#cr').onclick=()=>{if(confirm('Remove everything that came from the community brain from this device? Your own items stay.')){cm(`Removed ${S2.dropSource('community')} item(s). They come back on the next load unless you untick the auto-load box.`);ui()}};
+$('#pg').onclick=async()=>{const own=$('#pc').value.split('\n').map(x=>x.trim()).filter(Boolean),list=own.length?own:S2.PACKS[$('#pk').value],pp=$('#pp'),pm=$('#pm');$('#pg').disabled=true;$('#ps').hidden=false;pp.hidden=false;pp.value=0;
+  try{const r=await S2.learnPack(list,(p,t)=>{pp.value=p;pm.textContent=`Reading “${t}”…`});pm.textContent=`${r.stopped?'Stopped. ':''}Learned ${r.sentences} sentences from ${r.pages} pages (${r.links} links, ${r.failed} not found). Training the language model…`;pp.value=0;
+    try{await S2.trainLM(p=>{pp.value=p});pm.textContent+=' Done.'}catch(e){pm.textContent+=' '+e.message}}catch(e){pm.textContent=e.message}
+  pp.hidden=true;$('#ps').hidden=true;$('#pg').disabled=false;$('#lns').textContent=S2.lmStatus();ui()};
+$('#ps').onclick=()=>S2.stopPack();
 $('#ln').onclick=async()=>{const bar=$('#lp'),m=$('#lns');bar.hidden=false;bar.value=0;m.textContent='Training in the background…';try{await S2.trainLM(p=>{bar.value=p});m.textContent=S2.lmStatus()}catch(e){m.textContent=e.message}bar.hidden=true};
 $('#lt').onclick=()=>{const t=S2.lmSample($('#li').value,+$('#temp').value);$('#lo').textContent=t?($('#li').value.trim()+' '+t):'Train the language model first.'};
-S2.init().then(()=>{$('#lns').textContent=S2.lmStatus();ui();$('#bns').textContent=S2.status()});
+S2.init().then(()=>{$('#lns').textContent=S2.lmStatus();ui();if(P('cb.auto')!=='0')CB.pull().then(r=>{if(r.links||r.facts)cm(`Loaded ${r.links} link(s) and ${r.facts} fact(s) from the community brain.`);ui()}).catch(()=>{});$('#bns').textContent=S2.status()});
 })();
 </script>
 </body>
