@@ -191,6 +191,8 @@ html[data-anim=off] *,html[data-anim=off] *::before{animation:none!important;tra
     <label class="set"><span>Energy (random tangents)</span><input type="range" min="0" max="100" step="5" value="50" data-pref="energy"></label>
     <label class="set"><span>Swearing</span><select data-pref="swearlvl"><option value="0">Off</option><option value="1">Mild</option><option value="2">Spicy</option></select></label>
     <label class="set"><span>Answer detail</span><select data-pref="detail"><option value="brief">Brief</option><option value="normal" selected>Normal</option><option value="detailed">Detailed</option></select></label>
+    <label class="set"><span>Neural reply picker</span><input type="checkbox" data-pref="lm.use" checked></label>
+    <label class="set"><span>Candidates to compare</span><input type="range" min="1" max="10" step="1" value="6" data-pref="lmk"></label>
     <p class="hint">Serious topics always switch the jokes and swearing off.</p></section>
   <section><h3>Data</h3><p class="hint">Back up first (Brain tab > Export). This erases everything Sprout 2.0 stored in this browser: memories, graph, trained net and settings.</p><div class="row"><button id="gz">Erase Sprout 2.0 memory</button></div></section>
   <section><h3>Profile</h3><input id="gn" placeholder="Display name (saved in profile.json)" maxlength="60"></section>
@@ -206,6 +208,9 @@ html[data-anim=off] *,html[data-anim=off] *::before{animation:none!important;tra
   <section><h3>Intent network</h3><p class="hint">A small neural net trained from scratch in this browser on conversation examples from the brain file plus your chat lines (labelled by my rules). It only overrides the rules for casual messages and slang.</p><div class="row"><button id="bn">Train now</button></div><p id="bns" class="hint"></p></section>
   <section><h3>Learn from Wikipedia <small>beta</small></h3><p class="hint">Type a topic. Sprout fetches the intro from Wikipedia (public API, one lookup per press), shows the sentences, and learns the ones you keep, for answers and for word patterns. It trusts them less than the brain file, keeps them on this device only, and never includes them in community sharing. Text is from Wikipedia (CC BY-SA); each fact keeps its page link.</p>
     <div class="row"><input id="wq" placeholder="e.g. penguin, black holes, jazz" style="flex:1" autocomplete="off"><button id="wb" class="pri">Fetch</button></div><ul id="wl"></ul><div class="row"><button id="wk" hidden>Learn selected</button></div><p id="wm" class="hint" aria-live="polite"></p></section>
+  <section><h3>Neural language model</h3><p class="hint">A small neural network trained from scratch on Sprout's own text (brain file, facts, Wikipedia pages you taught). It learns word embeddings and which word tends to come next, using backpropagation in a background worker. Jobs: it picks the most fluent of several candidate replies (Settings), and you can watch it continue a phrase below. With this little text it is more of a fluency judge than a writer.</p>
+    <div class="row"><button id="ln">Train</button></div><progress id="lp" value="0" max="1" hidden></progress><p id="lns" class="hint" aria-live="polite"></p>
+    <div class="row"><input id="li" placeholder="Start a sentence, e.g. penguins are" style="flex:1" autocomplete="off"><button id="lt">Continue</button></div><p id="lo" style="margin:6px 0"></p></section>
   <section><h3>Browse memory</h3><input id="bq" type="search" placeholder="Search memory…" aria-label="Search memory" style="width:100%;margin-bottom:8px"><div class="row"><select id="bt" aria-label="Memory type"><option value="personal">Personal</option><option value="episodic">Episodic</option><option value="semantic">Semantic</option><option value="procedural">Procedural</option><option value="graph">Knowledge graph</option></select></div><ul id="bl"></ul></section>
   <section><h3>Backup</h3><div class="row"><button id="bE">Export my brain</button><label class="btn" for="bI">Import backup</label><input id="bI" type="file" accept=".json,application/json" hidden></div><p id="bmb" class="hint" aria-live="polite"></p></section>
   <section><h3>Personality &amp; display</h3><label class="hint"><input type="checkbox" id="sy"> Show Sprout's reasoning under replies</label><br><label class="hint"><input type="checkbox" id="sw"> Let Sprout swear now and then</label></section>
@@ -734,6 +739,45 @@ function describe(e){const A=[...up(e)].filter(([x])=>x!=e).sort((a,b)=>a[1].d-b
   if(has.length)out.push(`It has ${has.join(' and ')}.`);
   if(inh.length)out.push(`As ${art(P)}, it ${inh.map(x=>(x.r=='has'?'has ':'can ')+(x.bw||x.b)).join(' and ')}.`);
   own.filter(x=>!['isa','can','cannot','has'].includes(x.r)).slice(0,2).forEach(x=>out.push(`${cap(art(e))} ${x.r} ${x.bw||x.b}.`));return out.join(' ')}
+/* ===== Neural language model: feed-forward, from scratch. Embeddings of the previous 3 words -> tanh hidden layer -> softmax over the vocabulary, trained by backpropagation. Same source runs in a Web Worker and on the main thread. ===== */
+const LMCODE=String.raw`function lmNew(V,E,H){const g=()=>Math.sqrt(-2*Math.log(Math.random()||1e-9))*Math.cos(6.2831853*Math.random()),A=(n,s)=>Float32Array.from({length:n},()=>g()*s),I=3*E;return{V,E,H,emb:A(V*E,.1),w1:A(H*I,Math.sqrt(1/I)),b1:new Float32Array(H),w2:A(V*H,Math.sqrt(1/H)),b2:new Float32Array(V)}}
+function lmFwd(m,a,b,c,h,x,p){const V=m.V,E=m.E,H=m.H,I=3*E;x.set(m.emb.subarray(a*E,a*E+E),0);x.set(m.emb.subarray(b*E,b*E+E),E);x.set(m.emb.subarray(c*E,c*E+E),2*E);
+ for(let j=0;j<H;j++){let s=m.b1[j];const o=j*I;for(let i=0;i<I;i++)s+=x[i]*m.w1[o+i];h[j]=Math.tanh(s)}
+ let mx=-1e30;for(let v=0;v<V;v++){let s=m.b2[v];const o=v*H;for(let j=0;j<H;j++)s+=h[j]*m.w2[o+j];p[v]=s;if(s>mx)mx=s}
+ let z=0;for(let v=0;v<V;v++){p[v]=Math.exp(p[v]-mx);z+=p[v]}for(let v=0;v<V;v++)p[v]/=z}
+function lmIds(m,w){return[1,1,1,...w.map(t=>m.ix.has(t)?m.ix.get(t):0),2]}
+function lmNLL(m,ids){const x=new Float32Array(3*m.E),h=new Float32Array(m.H),p=new Float32Array(m.V);let L=0,n=0;for(let i=3;i<ids.length;i++){lmFwd(m,ids[i-3],ids[i-2],ids[i-1],h,x,p);L-=Math.log(p[ids[i]]+1e-9);n++}return n?L/n:99}
+function* lmTrain(seqs,o){const cnt={};seqs.forEach(s=>s.forEach(w=>cnt[w]=(cnt[w]||0)+1));
+ const vocab=['<unk>','<s>','</s>',...Object.keys(cnt).filter(w=>cnt[w]>=o.min).sort((a,b)=>cnt[b]-cnt[a]).slice(0,o.V-3)];if(seqs.length<50||vocab.length<40)return null;
+ const m=lmNew(vocab.length,o.E,o.H);m.vocab=vocab;m.ix=new Map(vocab.map((w,i)=>[w,i]));
+ const S=seqs.map(s=>lmIds(m,s)),tr=S.filter((_,i)=>i%10!=9),te=S.filter((_,i)=>i%10==9),ex=[];tr.forEach(s=>{for(let i=3;i<s.length;i++)ex.push([s,i])});
+ const ppl=()=>{let L=0,n=0;te.forEach(s=>{L+=lmNLL(m,s)*(s.length-3);n+=s.length-3});return Math.exp(L/(n||1))};
+ const base=ppl(),I=3*o.E,V=m.V,H=o.H,x=new Float32Array(I),h=new Float32Array(H),p=new Float32Array(V),dh=new Float32Array(H),dx=new Float32Array(I);let step=0;
+ for(let ep=0;ep<o.epochs;ep++){const lr=o.lr*(1-ep/(o.epochs+1));for(let i=ex.length-1;i>0;i--){const j=Math.random()*(i+1)|0,t=ex[i];ex[i]=ex[j];ex[j]=t}
+  for(const [s,i] of ex){const a=s[i-3],b=s[i-2],c=s[i-1],y=s[i];lmFwd(m,a,b,c,h,x,p);p[y]-=1;dh.fill(0);
+   for(let v=0;v<V;v++){const d=p[v];if(d<1e-4&&d>-1e-4)continue;const q=v*H;for(let j=0;j<H;j++){dh[j]+=m.w2[q+j]*d;m.w2[q+j]-=lr*d*h[j]}m.b2[v]-=lr*d}
+   dx.fill(0);for(let j=0;j<H;j++){const g=dh[j]*(1-h[j]*h[j]),q=j*I;for(let k=0;k<I;k++){dx[k]+=m.w1[q+k]*g;m.w1[q+k]-=lr*g*x[k]}m.b1[j]-=lr*g}
+   [a,b,c].forEach((w,k)=>{for(let e=0;e<o.E;e++)m.emb[w*o.E+e]-=lr*dx[k*o.E+e]});
+   if(++step%2500==0)yield step/(ex.length*o.epochs)}}
+ let ok=0,tot=0;te.forEach(s=>{if(s.length<8)return;const sh=s.slice(3,-1).sort(()=>Math.random()-.5);tot++;if(lmNLL(m,s)<lmNLL(m,[1,1,1,...sh,2]))ok++});
+ m.info={words:ex.length,V,base,after:ppl(),disc:tot?ok/tot:0,tested:tot};delete m.ix;return m}
+function lmSample(m,words,n,temp){const x=new Float32Array(3*m.E),h=new Float32Array(m.H),p=new Float32Array(m.V),ids=lmIds(m,words).slice(0,-1),out=[];
+ for(let k=0;k<n;k++){const L=ids.length;lmFwd(m,ids[L-3],ids[L-2],ids[L-1],h,x,p);const c=[];for(let v=2;v<m.V;v++)c.push(v);c.sort((a,b)=>p[b]-p[a]);
+  const top=c.slice(0,10).map(v=>[v,Math.pow(p[v],1/Math.max(.2,temp))]),z=top.reduce((a,b)=>a+b[1],0);let r=Math.random()*z,pk=top[0][0];for(const [v,w] of top){r-=w;if(r<=0){pk=v;break}}
+  if(pk==2)break;ids.push(pk);out.push(m.vocab[pk])}return out.join(' ').replace(/ ([.,!?])/g,'$1')}`;
+const LMX=new Function(LMCODE+';return{lmTrain,lmNLL,lmIds,lmSample}')();
+const LMWORKER=LMCODE+'\nonmessage=e=>{const it=lmTrain(e.data.seqs,e.data.opt);let r;while(!(r=it.next()).done)postMessage({p:r.value});const m=r.value;postMessage({m},m?[m.emb.buffer,m.w1.buffer,m.b1.buffer,m.w2.buffer,m.b2.buffer]:[])}';
+let LM=null;const lmTok=t=>String(t).toLowerCase().match(/[\p{L}\p{N}'-]+|[.,!?]/gu)||[];
+function lmCorpus(){const T=[],add=x=>String(x||'').split(/(?<=[.!?])\s+/).forEach(z=>{const w=lmTok(z);if(w.length>=3&&w.length<=40)T.push(w)});
+  (typeof comm!='undefined'?comm:[]).concat(typeof mine!='undefined'?mine:[]).forEach(f=>add(f.t));
+  ['semantic','procedural'].forEach(ty=>mem[ty].forEach(m=>{if(m.kind=='conversation_example'||m.kind=='personality_rule'){const f=F(m);add(f.sprout||f.example)}else if(!m.kind)add(m.a||m.text)}));
+  (globalThis.WEB||[]).forEach(f=>add(f.t));const seen=new Set();return T.filter(w=>{const k=w.join(' ');return seen.has(k)?false:seen.add(k)})}
+async function trainLM(prog){const seqs=lmCorpus(),opt={V:1600,min:2,E:16,H:48,lr:.12,epochs:6};if(seqs.length<100)throw new Error('Not enough text yet. Import the brain file or learn from Wikipedia first.');let m=null;
+  if(typeof Worker!='undefined'){try{m=await new Promise((res,rej)=>{const w=new Worker(URL.createObjectURL(new Blob([LMWORKER],{type:'text/javascript'})));w.onerror=()=>{w.terminate();rej(0)};w.onmessage=e=>{if(e.data.p!==undefined)prog&&prog(e.data.p);else{w.terminate();res(e.data.m)}};w.postMessage({seqs,opt})})}catch{m=null}}
+  if(!m){const it=LMX.lmTrain(seqs,opt);let r;while(!(r=it.next()).done){prog&&prog(r.value);await new Promise(z=>setTimeout(z))}m=r.value}
+  if(!m)throw new Error('Not enough text to train on.');put('model',{id:'lm',m});m.ix=new Map(m.vocab.map((w,i)=>[w,i]));LM=m;return m.info}
+const lmReady=()=>!!LM,lmFluency=t=>{const w=lmTok(t);return LM&&w.length>1?LMX.lmNLL(LM,LMX.lmIds(LM,w)):99},lmSample=(seed,temp)=>LM?LMX.lmSample(LM,lmTok(seed).slice(-3),24,temp||.8):'';
+const lmStatus=()=>LM?`Neural language model: ${LM.info.V} words · ${LM.info.words} training windows · perplexity ${LM.info.after.toFixed(1)} on unseen sentences (random guessing would be ${LM.info.V}) · prefers the real sentence over a shuffled one ${Math.round(LM.info.disc*100)}% of the time (${LM.info.tested} test sentences)`:'Neural language model: not trained yet';
 /* Slash commands */
 function cmd(s){const [c,...r]=s.slice(1).split(' '),a=r.join(' ').trim(),o=text=>({text,plain:text,guessed:false,nofb:1});
   switch(c.toLowerCase()){
@@ -748,15 +792,15 @@ const exportAll=()=>JSON.stringify({v:2,mem,G,XD,t:Date.now()});
 function importAll(js){const d=JSON.parse(js);if(!d||d.v!==2||!d.mem)throw new Error('not a Sprout backup');let n=0;
   for(const ty of Object.keys(mem))(d.mem[ty]||[]).forEach(m=>{if(!m||typeof m.text!='string'||!Array.isArray(m.tk))return;const k=ty+'|'+nk(m.text);if(KS.has(k))return;m.ty=ty;mem[ty].push(m);KS.add(k);put(ty,m);n++});
   (d.G||[]).forEach(g=>{if(g&&g.a&&g.r&&g.b&&!G.some(x=>x.a==g.a&&x.r==g.r&&x.b==g.b)){G.push(g);put('graph',g);n++}});dirty=1;return n}
-async function init(){await open();for(const s of ST){const a=await gall(s);if(s=='graph')G.push(...a);else a.forEach(m=>{mem[s].push(m);KS.add(s+'|'+nk(m.text))})}for(const m of await gall('model')){if(m.id=='intentdata')XD=m.d||[];if(m.id=='emb'&&m.V)EMB={V:m.V,ix:new Map(m.V.map((w,i)=>[w,i])),D:24,I:Float32Array.from(m.I)};if(m.id=='intent'&&m.w1)try{initNN();W1.set(m.w1);B1.set(m.b1);W2.set(m.w2);B2.set(m.b2);NNinfo=m.info}catch{NNinfo={n:0,acc:0,ok:0}}}dirty=1;syncWeb()}
+async function init(){await open();for(const s of ST){const a=await gall(s);if(s=='graph')G.push(...a);else a.forEach(m=>{mem[s].push(m);KS.add(s+'|'+nk(m.text))})}for(const m of await gall('model')){if(m.id=='intentdata')XD=m.d||[];if(m.id=='lm'&&m.m&&m.m.vocab){LM=m.m;LM.ix=new Map(LM.vocab.map((w,i)=>[w,i]))}if(m.id=='emb'&&m.V)EMB={V:m.V,ix:new Map(m.V.map((w,i)=>[w,i])),D:24,I:Float32Array.from(m.I)};if(m.id=='intent'&&m.w1)try{initNN();W1.set(m.w1);B1.set(m.b1);W2.set(m.w2);B2.set(m.b2);NNinfo=m.info}catch{NNinfo={n:0,acc:0,ok:0}}}dirty=1;syncWeb()}
 const choose=(r,g)=>!r?'g':!r.soft?'r':(!g||g.guessed||g.cov<.6)&&(!r.partial||!g)?'r':'g';
-return{wiki,learnWeb,syncWeb,choose,init,answer,importText,embed,exportAll,importAll,snap,mergeIn,tomb:()=>TB,clearTomb,entity,ents,train,feedback,addText,fmt,status,remember,fix,drop,link,prove,search,intent,mem,G,get trace(){return TR},cancel:()=>{cancel=1;if(W){W.terminate();W=null;WR&&WR()}},wsrc:WSRC,flush}})();
+return{trainLM,lmReady,lmFluency,lmSample,lmStatus,lmCorpus,lmWorker:LMWORKER,wiki,learnWeb,syncWeb,choose,init,answer,importText,embed,exportAll,importAll,snap,mergeIn,tomb:()=>TB,clearTomb,entity,ents,train,feedback,addText,fmt,status,remember,fix,drop,link,prove,search,intent,mem,G,get trace(){return TR},cancel:()=>{cancel=1;if(W){W.terminate();W=null;WR&&WR()}},wsrc:WSRC,flush}})();
 </script>
 <script>
 /* Sprout 2.0 · GitHub personal storage (Part 4). Manual, merge-first sync. The token is only ever sent to api.github.com. */
 const GH=(()=>{
 const TY={'personal-memories':'personal','episodic-memories':'episodic','semantic-memories':'semantic','procedural-memories':'procedural','knowledge-graph':'graph'},ALL=['profile',...Object.keys(TY),'settings','metadata'];
-const PK=['ui.theme','ui.accent','ui.font','ui.width','ui.anim','ui.bg','ui.compact','ui.speed','sass','energy','swearlvl','detail'];
+const PK=['ui.theme','ui.accent','ui.font','ui.width','ui.anim','ui.bg','ui.compact','ui.speed','sass','energy','swearlvl','detail','lmk','lm.use'];
 let tok='';const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch{}};
 const cfg=()=>{try{return JSON.parse(ls('sprout.gh.cfg'))||{}}catch{return{}}},setCfg=c=>ls('sprout.gh.cfg',JSON.stringify(c));
 /* Optional encrypted copy of the token: PBKDF2 (250k rounds) -> AES-GCM, stored in this browser only */
@@ -3291,7 +3335,11 @@ Intent: correction
 const _gen=gen;
 gen=(q,T)=>{let r=null;try{r=S2.answer(q)}catch(e){console.warn('S2',e)}
   if(r&&!r.soft)return use(q,r);
-  const g=_gen(q,T);return S2.choose(r,g)=='r'?use(q,r,g):g};
+  const g=pick(q,T);return S2.choose(r,g)=='r'?use(q,r,g):g};
+const pick=(q,T)=>{const k=+(P('lmk')||6);if(!S2.lmReady()||k<2||P('lm.use')==='0')return _gen(q,T);
+  const H0=[...HIST],U0=new Set(USED),c=[];for(let i=0;i<k;i++){const g=_gen(q,T);if(g)c.push(g);HIST=[...H0];USED=new Set(U0)}
+  if(!c.length)return null;const sure=c.filter(g=>!g.guessed),pool=sure.length?sure:c,best=pool.map(g=>[S2.lmFluency(g.text),g]).sort((a,b)=>a[0]-b[0])[0][1];
+  HIST=[...H0,{q,a:best.text}].slice(-6);return best};
 const use=(q,r,g)=>{if(S(localStorage,'sprout.why')!=='1'&&(r.conf??1)>=.7)r.note=null;if(S(localStorage,'sprout.why')==='1'&&S2.trace.length)r.note=(r.note?r.note+'\n':'')+'Thought: '+S2.trace.map(([a,c])=>a+' → '+c).join(' · ');
   try{const e={q,a:r.plain||r.text};HIST=g?[...HIST.slice(0,-1),e]:[...HIST,e].slice(-6)}catch{}return r};
 show=t=>{document.querySelector('nav').style.setProperty('--i',['chat','teach','brain','know','settings'].indexOf(t));['chat','teach','brain','know','settings'].forEach(x=>{$('#'+x).hidden=x!=t;$('#t-'+x).setAttribute('aria-selected',x==t)});if(t=='chat')inp.focus();if(t=='brain')ui();if(t=='know')know();if(t=='settings')sets()};
@@ -3353,13 +3401,15 @@ $('#wk').onclick=()=>{const p=[...$('#wl').querySelectorAll('input:checked')].ma
 $('#b0').onclick=()=>$('#bf').onchange({target:{files:[document.getElementById('seed').textContent],value:''}});
 $('#bf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const bp=$('#bp'),bs=$('#bs');bp.hidden=false;$('#bx').disabled=false;bs.textContent='Reading file…';
   try{const sum=await S2.importText(await(f.text?f.text():f),(p,s)=>{bp.value=p;bs.textContent=`${Math.round(p*100)}% · ${s.ok} imported · ${s.dup} duplicates · ${s.bad} malformed`});
-    bs.textContent=S2.fmt(sum)+' Training intent net and word embeddings…';await S2.train();await S2.embed();bs.textContent=S2.fmt(sum);$('#bns').textContent=S2.status()}
+    bs.textContent=S2.fmt(sum)+' Training intent net and word embeddings…';await S2.train();await S2.embed();bs.textContent=S2.fmt(sum)+' Training the neural language model…';bp.hidden=false;try{await S2.trainLM(p=>{bp.value=p})}catch{}$('#lns').textContent=S2.lmStatus();bs.textContent=S2.fmt(sum);$('#bns').textContent=S2.status()}
   catch(err){bs.textContent='Import failed: '+(err&&err.message||err)}
   bp.hidden=true;$('#bx').disabled=true;ui()};
 $('#ba').onclick=async()=>{const v=$('#bi').value,o=$('#bm');if(!v.trim())return;o.textContent='Adding…';try{o.textContent=S2.fmt(await S2.addText(v));$('#bi').value='';ui()}catch(e){o.textContent='Could not add that: '+(e&&e.message||e)}};
 $('#bn').onclick=async()=>{$('#bns').textContent='Training…';await S2.train();await S2.embed();$('#bns').textContent=S2.status()};
 const _v=vote;vote=(up,fb,row,btn)=>{if(!fb.s2)return _v(up,fb,row,btn);if(row.dataset.v)return;row.dataset.v=up?'1':'0';btn.setAttribute('aria-pressed','true');[...row.children].forEach(x=>x.disabled=true);const n=S2.feedback(fb.s2,up),h=document.createElement('span');h.className='hint';h.textContent=up?'Thanks, I trust that a bit more now.':'Noted, I trust that less now.';row.append(h)};
-S2.init().then(()=>{ui();$('#bns').textContent=S2.status()});
+$('#ln').onclick=async()=>{const bar=$('#lp'),m=$('#lns');bar.hidden=false;bar.value=0;m.textContent='Training in the background…';try{await S2.trainLM(p=>{bar.value=p});m.textContent=S2.lmStatus()}catch(e){m.textContent=e.message}bar.hidden=true};
+$('#lt').onclick=()=>{const t=S2.lmSample($('#li').value,+$('#temp').value);$('#lo').textContent=t?($('#li').value.trim()+' '+t):'Train the language model first.'};
+S2.init().then(()=>{$('#lns').textContent=S2.lmStatus();ui();$('#bns').textContent=S2.status()});
 })();
 </script>
 </body>
